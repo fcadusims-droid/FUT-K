@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Run unit + scenario + invariant + regression tests (fast, fixed seed)
+        run: pytest -q --maxfail=1 -m "not slow"
+      - name: Run Monte Carlo / convergence tests (slower, still fixed seed)
+        run: pytest -q -m "slow"
+      - name: Generate RESULTS.md
+        run: python scripts/report.py
+      - name: Upload RESULTS.md
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.python-version }}
+          path: RESULTS.md
