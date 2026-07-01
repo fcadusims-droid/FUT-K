@@ -133,21 +133,26 @@ prediction moving onto the observed frequency), which is what over-prediction wa
 about. Not every fold improves (small 12-match test blocks are noisy) — an honest
 walk-forward signal, aggregate positive.
 
-### Does the model distinguish competitions? (`RESULTS_COMPARE.md`)
+### Finals vs regular games — does the model distinguish competitions? (`RESULTS_COMPARE.md`)
 
-`scripts/compare_competitions.py` fits `base_rate`/`tau` per competition and
-cross-applies each fit to the other. On a fine grid:
+`scripts/compare_competitions.py` fits `base_rate`/`tau` per competition (fine
+grid) and cross-applies each fit to the others — now including full-league regular
+games (a representative sample of La Liga 2015/16), not only finals:
 
-| Competition | Matches | Goals/match | Goals/90 | Fitted base_rate |
+| Competition | Matches | Goals/90 | Fitted base_rate | Fitted tau |
 |---|---|---|---|---|
-| World Cup 2018 | 64 | 2.64 | 2.46 | 0.012 |
-| Champions League finals | 18 | 3.00 | 2.70 | 0.013 |
+| Champions League finals | 18 | 2.70 | 0.013 | 4 |
+| World Cup 2018 | 64 | 2.46 | 0.012 | 4 |
+| La Liga 2015/16 (sample) | 50 | 2.28 | 0.012 | 16 |
 
-Champions League finals score more even per 90 minutes (2.70 vs 2.46 — the raw
-3.00 is partly extra time), and the model fits a **higher `base_rate` (0.013 vs
-0.012)**. Each competition's own parameters beat the other's on its own data, so
-**yes — the model distinguishes them**, though the gap is small (both are elite
-football). A coarse grid hides this; the finer grid reveals it.
+**Finals score more per 90 minutes** than regular league games, and the model
+picks it up: it fits a higher `base_rate` for the finals and — interestingly — a
+much longer pressure memory (`tau` 16 vs 4) for the steadier flow of regular
+league games. In the cross table **each competition's own parameters beat the
+others' on its own data**, so the model *does* distinguish them. (Caveat: the
+La Liga sample is 50 of 380 matches and came out below the full-league average of
+~2.74 goals/match, so its absolute rate is on the low side; the direction —
+finals highest — holds.)
 
 ### Per-regime calibration (`RESULTS_REGIME.md`)
 
