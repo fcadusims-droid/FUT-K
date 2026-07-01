@@ -5,5 +5,6 @@ the rest of the system never needs to know where a piece of information came fro
 """
 
 from .base import Source
+from .statsbomb import StatsBombSource
 
-__all__ = ["Source"]
+__all__ = ["Source", "StatsBombSource"]

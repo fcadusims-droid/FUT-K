@@ -6,7 +6,7 @@ statistics; it **interprets, explains, predicts, and learns**. The guiding
 question is never *"what will the final score be?"* — it is *"what is really
 happening, why, and what tends to happen next?"*
 
-The full design lives in [`football_intelligence_engine (3).md`](./football_intelligence_engine%20(3).md).
+The full design lives in [`football_intelligence_engine.md`](./football_intelligence_engine.md).
 This repository is the executable **validation suite** described in
 [`validation_test_plan.md`](./validation_test_plan.md): one Python module per
 section of the design document, and a falsifiable test per numbered test ID,

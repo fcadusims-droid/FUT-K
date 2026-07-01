@@ -14,7 +14,11 @@ import pathlib
 from fie import db as fie_db
 from fie.calibration import backtest
 from fie.prediction import Params
-from fie.sources.statsbomb import events_from_statsbomb, match_dict_from_statsbomb
+from fie.sources.statsbomb import (
+    StatsBombSource,
+    events_from_statsbomb,
+    match_dict_from_statsbomb,
+)
 
 FIXTURE = json.loads(
     (pathlib.Path(__file__).parent / "fixtures" / "statsbomb_sample.json").read_text()
@@ -95,6 +99,22 @@ def test_no_leakage_on_real_connector():
     at30_trunc = dict(match, events=truncated, eval_minutes=[30])
     second = backtest([at30_trunc], Params())["predictions"][0]["prob"]
     assert first == second
+
+
+def test_source_streams_mapped_events_offline():
+    """StatsBombSource maps events via injected loaders — no network in CI."""
+    raw_match = FIXTURE["match"]
+    source = StatsBombSource(
+        43, 3,
+        matches_loader=lambda: [raw_match],
+        events_loader=lambda match_id: FIXTURE["events"],
+    )
+    assert [str(m["match_id"]) for m in source.matches()] == [str(raw_match["match_id"])]
+    match = source.match(raw_match["match_id"])
+    assert match["home_team"] == "Alpha" and match["away_team"] == "Beta"
+    streamed = list(source.stream(raw_match["match_id"]))
+    assert len(streamed) == 12
+    assert all(e.team in ("HOME", "AWAY") for e in streamed)
 
 
 def test_sqlite_roundtrip():

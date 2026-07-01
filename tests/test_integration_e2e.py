@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from fie.confidence import confidence
-from fie.events import Event, State, state_from_events
+from fie.events import Event, state_from_events
 from fie.indices import momentum_index
 from fie.memory import remember, replay
 from fie.prediction import Params, predictions

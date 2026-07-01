@@ -189,21 +189,44 @@ def fetch_events(match_id, cache_dir=None):
 
 
 class StatsBombSource(Source):
-    """A pluggable ``Source`` over StatsBomb open data (post-match replay)."""
+    """A pluggable ``Source`` over StatsBomb open data (post-match replay).
+
+    Bound to one competition/season. The match index (which carries home/away and
+    the final score) is loaded once and cached on the instance; ``stream`` then
+    maps a single match's events to normalized ``Event`` objects. The loaders are
+    injectable so the mapping can be exercised offline, without the network.
+    """
 
     name = "statsbomb"
     base_trust = 0.95  # curated, high-quality event data
 
-    def __init__(self, cache_dir=None):
+    def __init__(self, competition_id, season_id, cache_dir=None,
+                 *, matches_loader=None, events_loader=None):
+        self.competition_id = competition_id
+        self.season_id = season_id
         self.cache_dir = cache_dir
+        self._matches_loader = matches_loader or (
+            lambda: fetch_matches(competition_id, season_id)
+        )
+        self._events_loader = events_loader or (
+            lambda match_id: fetch_events(match_id, cache_dir=cache_dir)
+        )
+        self._index = None
+
+    def _match_index(self):
+        if self._index is None:
+            self._index = {str(m["match_id"]): m for m in self._matches_loader()}
+        return self._index
+
+    def matches(self):
+        """All raw match records for the bound competition/season."""
+        return list(self._match_index().values())
+
+    def match(self, match_id):
+        """A backtest-ready match dict (teams, score, mapped events)."""
+        raw_match = self._match_index()[str(match_id)]
+        raw_events = self._events_loader(match_id)
+        return match_dict_from_statsbomb(raw_match, raw_events)
 
     def stream(self, match_id):
-        raw_match, raw_events = self._load(match_id)
-        yield from match_dict_from_statsbomb(raw_match, raw_events)["events"]
-
-    def _load(self, match_id):  # pragma: no cover - network path
-        raise NotImplementedError(
-            "StatsBombSource.stream needs the match metadata; use "
-            "match_dict_from_statsbomb() with fetch_matches()/fetch_events() in the "
-            "ingestion script."
-        )
+        yield from self.match(match_id)["events"]
