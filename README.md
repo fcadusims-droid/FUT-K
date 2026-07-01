@@ -202,3 +202,16 @@ inverts — rotation players (who enter against weaker/tiring sides) top the lis
 while Messi/Iniesta/Piqué show a *negative* delta because they are rested exactly
 when the team is already winning big. Presented as a weak descriptive signal, not
 a ranking of ability — a causal estimate must control for context.
+
+## Learned model — Stage 3 (`RESULTS_LEARNED.md`)
+
+`fie.learned` is a from-scratch (standard-library) logistic regression over
+leakage-safe state features (total pressure, dominance, time, score closeness,
+recent shots). `scripts/fit_learned_statsbomb.py` walk-forward-compares it against
+the heuristic. **Honest finding: it does not beat the fitted heuristic out of
+sample** (held-out log loss 0.5550 vs 0.5449). At this event rate and sample size
+the hand-built intensity already sits near the achievable signal, and the walk-
+forward discipline correctly *rejects* the learned model — a learned model earns
+its place only when it beats the heuristic out of sample (Section 21 / Phase 12).
+It should be re-checked as more data and richer features (player avatars) are
+added.
