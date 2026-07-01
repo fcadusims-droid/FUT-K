@@ -12,7 +12,7 @@ from fie.calibration import (
     reliability_curve,
 )
 from fie.events import Event
-from fie.prediction import Params, prob_event_within
+from fie.prediction import Params
 from tests.conftest import MULTI_SEEDS, SEEDS3
 from tests.generators import goal_window_snapshots
 

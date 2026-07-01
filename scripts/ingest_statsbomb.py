@@ -22,11 +22,7 @@ from fie.events import state_from_events
 from fie.indices import momentum_index
 from fie.prediction import Params, rates
 from fie.regime import detect_regime
-from fie.sources.statsbomb import (
-    fetch_events,
-    fetch_matches,
-    match_dict_from_statsbomb,
-)
+from fie.sources.statsbomb import StatsBombSource
 
 DEFAULT_CACHE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".sb_cache"
@@ -63,19 +59,18 @@ def main():
     fie_db.init_schema(conn)
 
     print(f"Fetching match list for competition {args.competition}, season {args.season} ...")
-    raw_matches = fetch_matches(args.competition, args.season)
-    raw_matches = sorted(raw_matches, key=lambda m: m["match_id"])[: args.limit]
+    source = StatsBombSource(args.competition, args.season, cache_dir=args.cache)
+    raw_matches = sorted(source.matches(), key=lambda m: m["match_id"])[: args.limit]
 
     matches = []
     total_goals = 0
     for i, raw in enumerate(raw_matches, 1):
         mid = raw["match_id"]
         try:
-            raw_events = fetch_events(mid, cache_dir=args.cache)
+            match = source.match(mid)
         except Exception as exc:  # noqa: BLE001
             print(f"  [{i}/{len(raw_matches)}] match {mid}: download failed ({exc}); skipping")
             continue
-        match = match_dict_from_statsbomb(raw, raw_events)
         matches.append(match)
         total_goals += (match["home_score"] or 0) + (match["away_score"] or 0)
         fie_db.insert_match(conn, match, competition=str(args.competition), season=str(args.season))
