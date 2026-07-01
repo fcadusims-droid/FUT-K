@@ -6,7 +6,15 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from fie.learning import fit_parameters, training_cost, walk_forward_split
+from fie.learning import (
+    DEFAULT_BASE_RATE_GRID,
+    DEFAULT_TAU_GRID,
+    evaluate,
+    fit_parameters,
+    training_cost,
+    walk_forward_report,
+    walk_forward_split,
+)
 from fie.prediction import Params
 from tests.conftest import SEEDS3
 from tests.generators import league_simulator
@@ -64,3 +72,48 @@ def test_walk_forward_no_overlap(n, n_folds):
     items = list(range(n))  # already a time-like ordering
     for train, test in walk_forward_split(items, n_folds=n_folds):
         assert max(train) < min(test)
+
+
+def test_evaluate_shape_and_bounds():
+    """evaluate() returns bounded calibration metrics on real-shaped matches."""
+    matches = league_simulator(6, TRUE_RATE, seed=3)
+    metrics = evaluate(matches, Params())
+    assert set(metrics) >= {"n", "brier", "log_loss", "mean_pred", "base_freq", "reliability"}
+    assert 0.0 <= metrics["brier"] <= 1.0
+    assert 0.0 <= metrics["mean_pred"] <= 1.0
+    assert 0.0 <= metrics["base_freq"] <= 1.0
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_fit_tau_grid_stays_in_grid(seed):
+    """Fitting base_rate x tau returns grid values and never worsens training loss."""
+    train = league_simulator(40, TRUE_RATE, seed=seed)
+    fitted = fit_parameters(train, WRONG_START, tau_grid=DEFAULT_TAU_GRID)
+    assert fitted.base_rate in DEFAULT_BASE_RATE_GRID
+    assert fitted.tau in DEFAULT_TAU_GRID
+    assert training_cost(train, fitted) <= training_cost(train, WRONG_START)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_walk_forward_closes_overprediction(seed):
+    """A too-high base rate over-predicts; walk-forward fitting closes the gap.
+
+    Mirrors the real-data finding: an over-confident predictor is pulled toward
+    the true event frequency out of sample, improving held-out log loss.
+    """
+    low_rate = 0.010
+    over_confident = Params(base_rate=0.020)  # predicts too many goals
+    matches = league_simulator(48, low_rate, seed=seed)
+
+    folds = walk_forward_report(matches, over_confident, n_folds=3, tau_grid=DEFAULT_TAU_GRID)
+    assert folds, "expected at least one walk-forward fold"
+
+    base_gap = sum(abs(f["baseline"]["mean_pred"] - f["baseline"]["base_freq"]) for f in folds)
+    fit_gap = sum(abs(f["fitted"]["mean_pred"] - f["fitted"]["base_freq"]) for f in folds)
+    base_loss = sum(f["baseline"]["log_loss"] for f in folds)
+    fit_loss = sum(f["fitted"]["log_loss"] for f in folds)
+
+    assert fit_gap < base_gap        # over-prediction shrinks out of sample
+    assert fit_loss < base_loss      # and held-out log loss improves

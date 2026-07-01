@@ -110,6 +110,7 @@ def match_dict_from_statsbomb(raw_match, raw_events):
     duration = int(max((e.minute for e in events), default=90)) + 1
     return {
         "match_id": match_id,
+        "match_date": raw_match.get("match_date"),
         "home_team": home,
         "away_team": away,
         "home_score": raw_match.get("home_score"),
