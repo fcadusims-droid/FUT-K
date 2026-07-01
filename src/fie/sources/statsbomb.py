@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import urllib.error
 import urllib.request
 
 from ..events import Event
@@ -121,17 +122,46 @@ def match_dict_from_statsbomb(raw_match, raw_events):
 # --------------------------------------------------------------------------- #
 # Live download helpers (used by the ingestion script, never by CI tests)
 # --------------------------------------------------------------------------- #
-def _get_json(url, retries=4, timeout=90):
-    """GET + parse JSON, retrying on transient errors / truncated responses."""
+def _http_bytes(url, step=1_000_000, retries=4, timeout=90):
+    """GET the full body, tolerating proxies that truncate large responses.
+
+    Some egress proxies cap a single HTTP response (~1.4 MB here), which makes a
+    plain ``urlopen().read()`` raise ``IncompleteRead`` on StatsBomb's multi-MB
+    event files. We fetch the body in sub-cap HTTP ``Range`` windows and
+    concatenate, which the origin (GitHub raw) serves as 206 Partial Content.
+    """
     last = None
     for attempt in range(retries):
         try:
-            with urllib.request.urlopen(url, timeout=timeout) as resp:
-                return json.loads(resp.read())
-        except Exception as exc:  # noqa: BLE001 - includes truncated-read JSON errors
+            buf = b""
+            start = 0
+            while True:
+                req = urllib.request.Request(
+                    url, headers={"Range": f"bytes={start}-{start + step - 1}"}
+                )
+                try:
+                    with urllib.request.urlopen(req, timeout=timeout) as resp:
+                        chunk = resp.read()
+                        status = resp.status
+                except urllib.error.HTTPError as http_err:
+                    if http_err.code == 416 and buf:  # requested past EOF -> done
+                        break
+                    raise
+                buf += chunk
+                # 200 == server ignored Range; a short window == final chunk.
+                if status == 200 or len(chunk) < step:
+                    break
+                start += len(chunk)
+            return buf
+        except Exception as exc:  # noqa: BLE001 - transient network / truncation
             last = exc
             time.sleep(2 * (attempt + 1))
     raise last
+
+
+def _get_json(url, timeout=90):
+    """GET + parse JSON, working around proxy response-size truncation."""
+    return json.loads(_http_bytes(url, timeout=timeout))
 
 
 def fetch_competitions():

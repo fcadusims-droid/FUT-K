@@ -79,3 +79,29 @@ passing test".
 | Source credibility convergence | 0.70 -> ~0.70 | T-15-04 |
 | Narrative-memory convergence | 0.18 -> ~0.18 | T-15-09 |
 | No information leakage in `backtest()` | hard gate | T-20-04 |
+
+## Real data (Phase 1)
+
+The engine now plugs into **StatsBomb open data** (free, event-level) via a real
+`Source`. `scripts/ingest_statsbomb.py` downloads a competition/season, writes it
+to SQLite, and runs the same leakage-safe backtest on real events:
+
+```bash
+python scripts/ingest_statsbomb.py --competition 43 --season 3 --limit 25
+```
+
+First real calibration (2018 World Cup, 25 matches, "goal in next 10 min", 412
+scored predictions — see `RESULTS_REAL.md`):
+
+| Metric | Value |
+|---|---|
+| Real goals/match | 2.40 (engine target ~2.7) |
+| Base event frequency | 0.199 (noise floor Brier ≈ 0.159) |
+| **Brier** | **0.163** |
+| **Log loss** | **0.510** |
+
+The heuristic lands close to the calibration noise floor, and the reliability
+curve shows a small, honest over-prediction (predicts ~27% where ~18.5% occur) —
+exactly the gap that per-competition parameter fitting (Section 21) exists to
+close. `src/fie` stays standard-library only; the connector and DB use
+`urllib` / `sqlite3`.
