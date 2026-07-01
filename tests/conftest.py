@@ -12,6 +12,9 @@ from fie.prediction import Params
 # see MULTI_SEEDS below and the parametrized MC tests.
 SEED = 20240607
 MULTI_SEEDS = (1, 7, 42, 101, 2024)
+# The minimum multi-seed set Part H requires for every MC/CONVERGENCE test
+# ("at least 3 different random seeds, not just the CI default seed").
+SEEDS3 = MULTI_SEEDS[:3]
 
 
 @pytest.fixture

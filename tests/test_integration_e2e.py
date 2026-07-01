@@ -10,7 +10,7 @@ from fie.indices import momentum_index
 from fie.memory import remember, replay
 from fie.prediction import Params, predictions
 from fie.regime import REGIMES, detect_regime, regime_instability
-from tests.conftest import SEED
+from tests.conftest import SEED, SEEDS3
 from tests.generators import league_simulator, poisson_match
 
 
@@ -62,9 +62,10 @@ def test_pipeline_runs_and_stays_bounded():
 
 
 @pytest.mark.slow
-def test_panel_aggregate_matches_generator():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_panel_aggregate_matches_generator(seed):
     """T-INT-02: aggregate goals/match over 1000 matches match the generator."""
-    matches = league_simulator(1000, base_rate=0.015, seed=SEED)
+    matches = league_simulator(1000, base_rate=0.015, seed=seed)
     expected = sum((m["lambda_home"] + m["lambda_away"]) * m["duration"] for m in matches)
     observed = sum(m["home_goals"] + m["away_goals"] for m in matches)
     assert abs(observed - expected) / expected < 0.03

@@ -17,7 +17,7 @@ from fie.prediction import (
     prob_next_goal,
     rates,
 )
-from tests.conftest import MULTI_SEEDS, SEED
+from tests.conftest import MULTI_SEEDS, SEED, SEEDS3
 from tests.generators import (
     simulate_first_scorer,
     simulate_goal_in_window,
@@ -38,11 +38,12 @@ def test_poisson_at_least_one(lmbda):
 
 
 @pytest.mark.slow
-def test_goal_in_window_matches_simulation():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_goal_in_window_matches_simulation(seed):
     """T-08-03: goal-in-window formula matches the simulated frequency."""
     lam_home = lam_away = BASE_RATE
     formula = prob_event_within(lam_home + lam_away, 10)
-    empirical = simulate_goal_in_window(lam_home, lam_away, 10, n=100_000, seed=SEED)
+    empirical = simulate_goal_in_window(lam_home, lam_away, 10, n=100_000, seed=seed)
     assert abs(formula - empirical) < 0.005  # within 0.5 percentage point
     # Exact closed form for λ_total=0.03 over 10 min is 1 - e^-0.3 = 0.2592; the
     # spec's "≈27–28%" is a loose approximation of this same quantity.
@@ -50,11 +51,12 @@ def test_goal_in_window_matches_simulation():
 
 
 @pytest.mark.slow
-def test_next_goal_matches_first_scorer():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_next_goal_matches_first_scorer(seed):
     """T-08-04: prob_next_goal matches the empirical 'who scores first' share."""
     lam_home, lam_away = 0.02, 0.01
     expected = prob_next_goal(lam_home, lam_away)["HOME"]
-    empirical = simulate_first_scorer(lam_home, lam_away, n=100_000, seed=SEED)
+    empirical = simulate_first_scorer(lam_home, lam_away, n=100_000, seed=seed)
     assert abs(expected - empirical) < 0.005
 
 

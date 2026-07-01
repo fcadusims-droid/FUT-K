@@ -13,27 +13,29 @@ from fie.calibration import (
 )
 from fie.events import Event
 from fie.prediction import Params, prob_event_within
-from tests.conftest import MULTI_SEEDS, SEED
+from tests.conftest import MULTI_SEEDS, SEEDS3
 from tests.generators import goal_window_snapshots
 
 
 @pytest.mark.slow
-def test_brier_of_calibrated_predictor():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_brier_of_calibrated_predictor(seed):
     """T-20-01: Brier of a perfectly calibrated predictor reproduces ~0.190."""
     # Constant total rate 0.03/min over a 10-min window -> p = 1 - e^-0.3 ~ 0.259,
     # whose irreducible Brier is p(1-p) ~ 0.192.
     _, p_true, outcomes = goal_window_snapshots(
-        n=200_000, window=10, seed=SEED, lam_low=0.03, lam_high=0.03
+        n=200_000, window=10, seed=seed, lam_low=0.03, lam_high=0.03
     )
     pairs = list(zip(p_true, outcomes))
     assert abs(brier(pairs) - 0.190) < 0.01
 
 
 @pytest.mark.slow
-def test_biased_predictor_is_worse():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_biased_predictor_is_worse(seed):
     """T-20-02: a biased predictor (λ×1.4) scores a worse Brier and a bent curve."""
     lam, p_true, outcomes = goal_window_snapshots(
-        n=200_000, window=10, seed=SEED, lam_low=0.03, lam_high=0.03
+        n=200_000, window=10, seed=seed, lam_low=0.03, lam_high=0.03
     )
     calibrated = list(zip(p_true, outcomes))
     p_biased = 1.0 - __import__("numpy").exp(-1.4 * lam * 10)
@@ -48,10 +50,11 @@ def test_biased_predictor_is_worse():
 
 
 @pytest.mark.slow
-def test_reliability_curve_on_diagonal():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_reliability_curve_on_diagonal(seed):
     """T-20-03: reliability_curve on a calibrated predictor lies on the diagonal."""
     _, p_true, outcomes = goal_window_snapshots(
-        n=400_000, window=10, seed=SEED, lam_low=0.02, lam_high=0.06
+        n=400_000, window=10, seed=seed, lam_low=0.02, lam_high=0.06
     )
     pairs = list(zip(p_true, outcomes))
     curve = reliability_curve(pairs, n_bands=10)
