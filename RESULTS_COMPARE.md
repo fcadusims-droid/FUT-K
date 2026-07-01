@@ -8,15 +8,17 @@
 |---|---|---|---|---|---|---|---|
 | World Cup 2018 | 64 | 2.64 | 97 | 2.46 | 0.228 | 0.012 | 4.0 |
 | Champions League finals | 18 | 3.00 | 100 | 2.70 | 0.247 | 0.013 | 4.0 |
+| La Liga 2015/16 (sample) | 50 | 2.36 | 93 | 2.28 | 0.219 | 0.012 | 16.0 |
 
 ## Cross-application (log loss — lower is better)
 
 Each row is a competition's data; each column is the parameters applied. The diagonal is the competition's own fit.
 
-| Data \\ Params | World Cup 2018 | Champions League finals |
-|---|---|---|
-| **World Cup 2018** | **0.5325** | 0.5331 |
-| **Champions League finals** | 0.5574 | **0.5563** |
+| Data \\ Params | World Cup 2018 | Champions League finals | La Liga 2015/16 (sample) |
+|---|---|---|---|
+| **World Cup 2018** | **0.5325** | 0.5331 | 0.5326 |
+| **Champions League finals** | 0.5574 | **0.5563** | 0.5578 |
+| **La Liga 2015/16 (sample)** | 0.5230 | 0.5244 | **0.5228** |
 
 ## Verdict
 

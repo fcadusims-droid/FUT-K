@@ -42,6 +42,32 @@ def load_dataset(pairs, cache_dir):
     return matches
 
 
+def load_sample(comp, season, cache_dir, n, seed):
+    """A deterministic seed-``seed`` sample of ``n`` matches, loaded from cache only.
+
+    Used for a big league (e.g. La Liga, 380 matches) where only a representative
+    sample has been downloaded — the sample is reproducible given the same cache.
+    """
+    import random
+
+    source = StatsBombSource(comp, season, cache_dir=cache_dir)
+    all_matches = source.matches()
+    rng = random.Random(seed)
+    chosen = set(rng.sample([m["match_id"] for m in all_matches], min(n, len(all_matches))))
+    matches = []
+    for m in all_matches:
+        if m["match_id"] not in chosen:
+            continue
+        if not os.path.exists(os.path.join(cache_dir, f"events_{m['match_id']}.json")):
+            continue  # only what is cached
+        try:
+            matches.append(source.match(m["match_id"]))
+        except Exception:  # noqa: BLE001
+            pass
+    matches.sort(key=lambda m: (m.get("match_date") or "", m["match_id"]))
+    return matches
+
+
 def _goals_per_match(matches):
     total = sum((m["home_score"] or 0) + (m["away_score"] or 0) for m in matches)
     return total / len(matches) if matches else float("nan")
@@ -64,15 +90,16 @@ def main():
     cl_pairs = [(16, c["season_id"]) for c in comps if c["competition_id"] == 16]
 
     datasets = {
-        "World Cup 2018": [(43, 3)],
-        "Champions League finals": cl_pairs,
+        "World Cup 2018": lambda: load_dataset([(43, 3)], args.cache),
+        "Champions League finals": lambda: load_dataset(cl_pairs, args.cache),
+        "La Liga 2015/16 (sample)": lambda: load_sample(11, 27, args.cache, 50, 42),
     }
 
     fitted = {}
     info = {}
-    for label, pairs in datasets.items():
+    for label, loader in datasets.items():
         print(f"Loading {label} ...")
-        matches = load_dataset(pairs, args.cache)
+        matches = loader()
         best = fit_parameters(
             matches, params0, base_rate_grid=FINE_BASE_RATE_GRID, tau_grid=DEFAULT_TAU_GRID
         )
