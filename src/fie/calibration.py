@@ -75,6 +75,39 @@ def predict_goal_within(state, events_until, params, window: float, regime=None)
     return prob_event_within(lam_home + lam_away, window)
 
 
+def iter_match_snapshots(match, params, window: float = 10.0, eval_step: int = 5):
+    """Yield one leakage-safe snapshot per evaluated minute of a match.
+
+    Each snapshot is ``{match_id, minute, regime, lam_home, lam_away, prob,
+    happened}`` — everything read from events at or before ``minute`` (the
+    prediction) plus the resolved future outcome. This is the single place the
+    minute-by-minute replay lives, reused by ``backtest`` and by the per-regime
+    calibration in ``learning``.
+    """
+    match_id = match.get("match_id", "")
+    all_events = sorted(match["events"], key=lambda e: e.minute)
+    duration = int(match.get("duration", 90))
+    eval_minutes = match.get("eval_minutes")
+    if eval_minutes is None:
+        last = max(eval_step, duration - int(window))
+        eval_minutes = range(eval_step, last + 1, eval_step)
+    for t in eval_minutes:
+        # Leakage-safe slice: strictly events at or before minute t.
+        events_until = [e for e in all_events if e.minute <= t]
+        state = state_from_events(match_id, all_events, t)
+        regime = detect_regime(state, events_until, params)
+        lam_home, lam_away = rates(state, events_until, params, regime=regime)
+        yield {
+            "match_id": match_id,
+            "minute": t,
+            "regime": regime,
+            "lam_home": lam_home,
+            "lam_away": lam_away,
+            "prob": prob_event_within(lam_home + lam_away, window),
+            "happened": _goal_within(all_events, t, t + window),
+        }
+
+
 def backtest(matches, params, window: float = 10.0, eval_step: int = 5) -> dict:
     """Replay each match minute by minute, predicting with past-only information.
 
@@ -90,26 +123,14 @@ def backtest(matches, params, window: float = 10.0, eval_step: int = 5) -> dict:
     pairs = []
     records = []
     for match in matches:
-        match_id = match.get("match_id", "")
-        all_events = sorted(match["events"], key=lambda e: e.minute)
-        duration = int(match.get("duration", 90))
-        eval_minutes = match.get("eval_minutes")
-        if eval_minutes is None:
-            last = max(eval_step, duration - int(window))
-            eval_minutes = list(range(eval_step, last + 1, eval_step))
-        for t in eval_minutes:
-            # Leakage-safe slice: strictly events at or before minute t.
-            events_until = [e for e in all_events if e.minute <= t]
-            state = state_from_events(match_id, all_events, t)
-            prob = predict_goal_within(state, events_until, params, window)
-            happened = _goal_within(all_events, t, t + window)
-            pairs.append((prob, happened))
+        for snap in iter_match_snapshots(match, params, window, eval_step):
+            pairs.append((snap["prob"], snap["happened"]))
             records.append(
                 {
-                    "match_id": match_id,
-                    "minute": t,
+                    "match_id": snap["match_id"],
+                    "minute": snap["minute"],
                     "target": f"goal_{int(window)}min",
-                    "prob": prob,
+                    "prob": snap["prob"],
                 }
             )
     result = {"pairs": pairs, "predictions": records}

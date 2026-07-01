@@ -132,3 +132,49 @@ dominated by the irreducible noise floor; the win is in **calibration** (the mea
 prediction moving onto the observed frequency), which is what over-prediction was
 about. Not every fold improves (small 12-match test blocks are noisy) — an honest
 walk-forward signal, aggregate positive.
+
+### Does the model distinguish competitions? (`RESULTS_COMPARE.md`)
+
+`scripts/compare_competitions.py` fits `base_rate`/`tau` per competition and
+cross-applies each fit to the other. On a fine grid:
+
+| Competition | Matches | Goals/match | Goals/90 | Fitted base_rate |
+|---|---|---|---|---|
+| World Cup 2018 | 64 | 2.64 | 2.46 | 0.012 |
+| Champions League finals | 18 | 3.00 | 2.70 | 0.013 |
+
+Champions League finals score more even per 90 minutes (2.70 vs 2.46 — the raw
+3.00 is partly extra time), and the model fits a **higher `base_rate` (0.013 vs
+0.012)**. Each competition's own parameters beat the other's on its own data, so
+**yes — the model distinguishes them**, though the gap is small (both are elite
+football). A coarse grid hides this; the finer grid reveals it.
+
+### Per-regime calibration (`RESULTS_REGIME.md`)
+
+`scripts/fit_regime_statsbomb.py` walk-forward-fits a per-regime λ scale on top of
+`base_rate`/`tau`. Honest finding: it **does not help** — held-out log loss rises
+(0.5449 → 0.5498) and on the full data every regime's best scale is ~1.0. The base
+multipliers (pressure, score, time, cards) already encode what the regime label
+would add, so the extra per-regime freedom just overfits — exactly Section 24's
+warning. The regime detector's value is in **interpretation** (panel, confidence),
+not as an extra goal-rate multiplier for this target.
+
+## Player profiles (Section 12) — `RESULTS_PROFILES.md`
+
+`scripts/build_profiles.py` accumulates on-ball events across a competition and
+builds each player's DNA — rates/shares, a descriptive archetype, and a
+normalized avatar — persisted to the SQLite `player_profiles` table.
+
+```bash
+python scripts/build_profiles.py --competition 43 --season 3 --limit 64
+```
+
+On the 2018 World Cup (603 players; 465 with >= 60 on-ball actions) the top lists
+double as a sanity check and come out right: Harry Kane / Ronaldo / Lukaku /
+Cheryshev top the scorers (all `finisher`), and Neymar / Ozil / Muller /
+Sigurdsson top the key-pass creators (all `creator`). Archetypes are descriptive
+labels read from observed shares — hypotheses, not ground truth (Section 12's
+honest-data warning). The connector extracts the rich StatsBomb fields (pass
+completion, progression, shot/goal assists, dribbles, turnovers) that the live
+`Event` model does not carry; `fie.profiling` derives the profiles
+source-agnostically and reuses the validated `players.avatar()`.
