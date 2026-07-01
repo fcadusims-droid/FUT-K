@@ -178,3 +178,22 @@ honest-data warning). The connector extracts the rich StatsBomb fields (pass
 completion, progression, shot/goal assists, dribbles, turnovers) that the live
 `Event` model does not carry; `fie.profiling` derives the profiles
 source-agnostically and reuses the validated `players.avatar()`.
+
+### Passing network — Layer 5 (`RESULTS_NETWORK.md`)
+
+`scripts/build_networks.py` builds a team's interaction network from completed
+passes (reusing the validated `players.passing_network` / `critical_links` and
+`tactical.team_robustness`). On Barcelona 2015/16 (38 league matches) it recovers
+their real structure: **robustness 0.933**, dependence only 0.093 (no single
+hub), most-central player **Busquets** (the pivot), and the strongest link
+**Alba → Neymar (575 passes)** — exactly how that side built play.
+
+### On/off influence — Layer 4 (`RESULTS_INFLUENCE.md`)
+
+`scripts/build_influence.py` reconstructs each player's minutes on the pitch and
+compares the team's goals/90 with them on vs off. On Barcelona 2015/16 this is a
+textbook demonstration of the **confounder** Section 12 warns about: naive on/off
+inverts — rotation players (who enter against weaker/tiring sides) top the list,
+while Messi/Iniesta/Piqué show a *negative* delta because they are rested exactly
+when the team is already winning big. Presented as a weak descriptive signal, not
+a ranking of ability — a causal estimate must control for context.

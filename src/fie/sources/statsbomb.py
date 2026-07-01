@@ -22,11 +22,23 @@ import os
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
+from typing import Optional
 
 from ..events import Event
 from .base import Source
 
 BASE_URL = "https://raw.githubusercontent.com/statsbomb/open-data/master/data"
+
+
+@dataclass
+class PassRecord:
+    """One pass for the interaction network (Section 12, Layer 5)."""
+
+    from_: str
+    to: Optional[str]
+    success: bool
+    created_chance: bool
 
 SHOT_ON_TARGET_OUTCOMES = {"Saved", "Saved to Post"}
 RED_CARDS = {"Red Card", "Second Yellow"}
@@ -105,6 +117,40 @@ def events_from_statsbomb(raw_events, home_team, away_team, match_id):
 ONBALL_TYPES = {"Pass", "Shot", "Dribble", "Carry"}
 
 
+def passing_records(raw_events, team_name, names=None):
+    """Extract ``PassRecord`` objects for ``team_name`` (Section 12, Layer 5).
+
+    Feeds ``players.passing_network``. Successful passes are completed passes
+    (StatsBomb marks only failures with an outcome) that have a recipient; a pass
+    "creates a chance" if it set up a shot or a goal. ``names`` (optional dict) is
+    filled with player_id -> name for reporting.
+    """
+    records = []
+    for e in raw_events:
+        if e.get("type", {}).get("name") != "Pass":
+            continue
+        if e.get("team", {}).get("name") != team_name:
+            continue
+        pinfo = e.get("pass", {})
+        passer = e.get("player") or {}
+        recipient = pinfo.get("recipient") or {}
+        pid = passer.get("id")
+        rid = recipient.get("id")
+        if pid is None:
+            continue
+        success = "outcome" not in pinfo and rid is not None
+        created = bool(pinfo.get("shot_assist") or pinfo.get("goal_assist"))
+        records.append(
+            PassRecord(str(pid), str(rid) if rid is not None else None, success, created)
+        )
+        if names is not None:
+            if passer.get("name"):
+                names[str(pid)] = passer["name"]
+            if rid is not None and recipient.get("name"):
+                names[str(rid)] = recipient["name"]
+    return records
+
+
 def accumulate_player_stats(raw_events, home_team, away_team, table=None):
     """Accumulate per-player counters (Section 12) from a match's raw events.
 
@@ -158,6 +204,76 @@ def accumulate_player_stats(raw_events, home_team, away_team, table=None):
         elif etype in ("Dispossessed", "Miscontrol"):
             rec["turnovers"] += 1
     return table
+
+
+def _event_minute(e):
+    return float(e.get("minute", 0)) + float(e.get("second", 0)) / 60.0
+
+
+def match_on_off(raw_events, team_name):
+    """Reconstruct on-pitch intervals for one team and its goals (Layer 4).
+
+    Returns ``{match_end, team_goals, per_player: {pid: {name, on_min, goals_on}}}``.
+    Starters run from minute 0; substitutions and red cards open/close intervals;
+    all open intervals close at full time (max event minute, extra time included).
+    """
+    match_end = max((_event_minute(e) for e in raw_events), default=90.0)
+    names = {}
+    starters = []
+    on_at = {}
+    off_at = {}
+
+    for e in raw_events:
+        etype = e.get("type", {}).get("name")
+        same_team = e.get("team", {}).get("name") == team_name
+        if etype == "Starting XI" and same_team:
+            for slot in e.get("tactics", {}).get("lineup", []):
+                p = slot.get("player", {})
+                if p.get("id") is not None:
+                    starters.append(str(p["id"]))
+                    names[str(p["id"])] = p.get("name")
+        elif etype == "Substitution" and same_team:
+            minute = _event_minute(e)
+            off_p = e.get("player", {})
+            if off_p.get("id") is not None:
+                off_at[str(off_p["id"])] = minute
+                names[str(off_p["id"])] = off_p.get("name")
+            repl = e.get("substitution", {}).get("replacement", {})
+            if repl.get("id") is not None:
+                on_at[str(repl["id"])] = minute
+                names[str(repl["id"])] = repl.get("name")
+        elif same_team and etype in ("Foul Committed", "Bad Behaviour"):
+            card = (
+                e.get("foul_committed", {}).get("card", {}).get("name")
+                if etype == "Foul Committed"
+                else e.get("bad_behaviour", {}).get("card", {}).get("name")
+            )
+            if card in RED_CARDS:
+                p = e.get("player", {})
+                if p.get("id") is not None:
+                    off_at[str(p["id"])] = _event_minute(e)
+
+    intervals = {}
+    for pid in starters:
+        intervals[pid] = (0.0, off_at.get(pid, match_end))
+    for pid, minute in on_at.items():
+        intervals[pid] = (minute, off_at.get(pid, match_end))
+
+    goal_minutes = [
+        _event_minute(e)
+        for e in raw_events
+        if e.get("type", {}).get("name") == "Shot"
+        and e.get("team", {}).get("name") == team_name
+        and e.get("shot", {}).get("outcome", {}).get("name") == "Goal"
+    ]
+
+    per_player = {}
+    for pid, (start, end) in intervals.items():
+        on_min = max(0.0, end - start)
+        goals_on = sum(1 for gm in goal_minutes if start <= gm <= end)
+        per_player[pid] = {"name": names.get(pid), "on_min": on_min, "goals_on": goals_on}
+
+    return {"match_end": match_end, "team_goals": len(goal_minutes), "per_player": per_player}
 
 
 def match_dict_from_statsbomb(raw_match, raw_events):

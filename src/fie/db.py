@@ -56,6 +56,27 @@ CREATE TABLE IF NOT EXISTS outcomes (
     happened      INTEGER
 );
 
+-- Passing network edges (Section 12, Layer 5)
+CREATE TABLE IF NOT EXISTS interactions (
+    scope           TEXT,   -- an aggregation label, e.g. "Barcelona 2015/2016"
+    from_player     TEXT,
+    to_player       TEXT,
+    passes          INTEGER,
+    chances_created INTEGER
+);
+
+-- Estimated on/off influence of each player on their team's goal rate (Layer 4)
+CREATE TABLE IF NOT EXISTS influence (
+    player_id   TEXT,
+    name        TEXT,
+    team        TEXT,
+    lambda_on   REAL,
+    lambda_off  REAL,
+    delta       REAL,
+    on_minutes  REAL,
+    off_minutes REAL
+);
+
 -- Consolidated "DNA" of each player (Section 12)
 CREATE TABLE IF NOT EXISTS player_profiles (
     player_id        TEXT PRIMARY KEY,
@@ -162,4 +183,32 @@ def insert_player_profile(conn, profile):
 def insert_player_profiles(conn, profiles):
     for profile in profiles:
         insert_player_profile(conn, profile)
+    conn.commit()
+
+
+def insert_influence(conn, rows):
+    """Persist on/off influence rows (Layer 4)."""
+    conn.executemany(
+        "INSERT INTO influence (player_id, name, team, lambda_on, lambda_off, delta, "
+        "on_minutes, off_minutes) VALUES (?,?,?,?,?,?,?,?)",
+        [
+            (r["player_id"], r["name"], r["team"], r["lambda_on"], r["lambda_off"],
+             r["delta"], r["on_minutes"], r["off_minutes"])
+            for r in rows
+        ],
+    )
+    conn.commit()
+
+
+def insert_interactions(conn, scope, graph, names=None):
+    """Persist a passing-network graph (``{(from,to): {weight, chances}}``)."""
+    names = names or {}
+    conn.executemany(
+        "INSERT INTO interactions (scope, from_player, to_player, passes, "
+        "chances_created) VALUES (?,?,?,?,?)",
+        [
+            (scope, names.get(a, a), names.get(b, b), d["weight"], d["chances"])
+            for (a, b), d in graph.items()
+        ],
+    )
     conn.commit()
