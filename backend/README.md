@@ -38,8 +38,17 @@ uvicorn app.main:app --reload
 ```
 
 - `GET /health` — liveness check
-- `GET /matches` — list matches currently in the DB (populated by the Phase A2
-  ingestion pipeline; empty on a fresh database)
+- `GET /matches?competition=` — list ingested matches
+- `GET /matches/{id}` — match detail (teams, score, goal minutes, duration)
+- `GET /matches/{id}/state?minute=M` — the **intelligent panel** (Section 22) at
+  minute M: score, regime, momentum, pressure, predictions with confidence,
+  change score, and the explained "why". Leakage-safe: events are sliced at M
+  before anything is computed (same discipline as T-20-04).
+- `GET /matches/{id}/timeline?step=5` — panel states across the whole match
+  (the replay scrubber's data)
+- `GET /players/profiles?team=&archetype=&min_actions=` — player DNA profiles
+
+Interactive OpenAPI docs at `/docs` when the server is running.
 
 ## Test
 
