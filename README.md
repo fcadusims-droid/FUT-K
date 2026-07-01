@@ -44,10 +44,29 @@ src/fie/            # one module per section of the design document
 tests/              # one test file per module; test IDs map to the plan (T-SS-NN)
   generators/       # synthetic data generators (Part D)
 scripts/            # run_monte_carlo.py, report.py -> RESULTS.md
+backend/            # FastAPI service: production schema (Postgres/SQLite),
+                    #   ingestion pipeline, replay/prediction API (own pyproject)
+frontend/           # React + Vite app: match catalog + minute-by-minute replay
+                    #   of the Section 22 intelligent panel
 ```
 
 `src/fie` is **standard-library only**. All third-party dependencies (pytest,
-hypothesis, numpy) are test-only and live in the `[dev]` extra.
+hypothesis, numpy) are test-only and live in the `[dev]` extra. The backend and
+frontend are separate packages that consume the engine — see
+`backend/README.md` and `frontend/README.md`.
+
+## The app (end to end)
+
+```text
+StatsBomb open data ──ingest──> Postgres ──FastAPI──> React replay UI
+      (.sb_cache)              (Section 6 schema)    (Section 22 panel)
+```
+
+Ingested so far: **462 real matches** (World Cup 2018 complete, all 18
+Champions League finals 1970–2019, La Liga 2015/16 complete), 34k+ events,
+1.3k player profiles. Pick any match and scrub it minute by minute: the panel
+recomputes score, regime, momentum, Poisson predictions with confidence, and
+the explained "why" — leakage-safe at every minute.
 
 ## Running
 
