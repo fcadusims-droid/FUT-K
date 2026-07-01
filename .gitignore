@@ -8,3 +8,7 @@ dist/
 .hypothesis/
 .venv/
 venv/
+
+# Real-data ingestion artifacts (StatsBomb cache + local SQLite DBs)
+.sb_cache/
+*.sqlite
