@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 import pytest
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from fie.narrative import (
@@ -17,7 +17,7 @@ from fie.narrative import (
     update_narrative_memory,
     verify,
 )
-from tests.conftest import MULTI_SEEDS
+from tests.conftest import SEEDS3
 from tests.generators import narrative_pattern_world, narrative_world
 
 
@@ -61,10 +61,11 @@ def test_classify_directional():
 
 
 @pytest.mark.slow
+@pytest.mark.parametrize("seed", SEEDS3)
 @pytest.mark.parametrize("p", [0.2, 0.5, 0.7, 0.95])
-def test_credibility_converges(p):
+def test_credibility_converges(p, seed):
     """T-15-04: a source's credibility converges to its true hit rate."""
-    labels = narrative_world(true_accuracy=p, n_opinions=20_000, seed=MULTI_SEEDS[0])
+    labels = narrative_world(true_accuracy=p, n_opinions=20_000, seed=seed)
     source = {}
     for label in labels:
         update_credibility(source, label)
@@ -89,25 +90,34 @@ def test_collective_state_overreaction_false():
 
 
 @given(
-    base=st.floats(0, 100),
-    div=st.floats(0, 100),
+    emotion=st.floats(0, 100),
+    reality=st.floats(0, 100),
     shift=st.floats(-30, 30),
 )
-def test_overreaction_pure_function_of_divergence(base, div, shift):
+def test_overreaction_pure_function_of_divergence(emotion, reality, shift):
     """T-15-08: overreaction depends only on abs(emotion-reality) > threshold."""
-    a = collective_state(base, base + div, threshold=40)["overreaction"]
-    b = collective_state(base + shift, base + shift + div, threshold=40)["overreaction"]
+    # Core invariant: the flag is exactly the divergence-vs-threshold comparison,
+    # with no hidden dependence on the absolute emotion/reality levels.
+    assert collective_state(emotion, reality, threshold=40)["overreaction"] == (
+        abs(emotion - reality) > 40
+    )
+    # Same divergence shifted to a different absolute level -> same flag, except
+    # exactly on the threshold, where float rounding may legitimately tip it.
+    assume(abs(abs(emotion - reality) - 40) > 1e-6)
+    a = collective_state(emotion, reality, threshold=40)["overreaction"]
+    b = collective_state(emotion + shift, reality + shift, threshold=40)["overreaction"]
     assert a == b
 
 
 @pytest.mark.slow
-def test_narrative_memory_converges():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_narrative_memory_converges(seed):
     """T-15-09: a recurring pattern's reliability converges to its true rate.
 
     Reproduces the spec's '18% cliché' reference; convergence to ±0.02 needs more
     than the 200-game illustration, so we use a larger draw with the same rate.
     """
-    draws = narrative_pattern_world(true_rate=0.18, n_games=5_000, seed=MULTI_SEEDS[0])
+    draws = narrative_pattern_world(true_rate=0.18, n_games=5_000, seed=seed)
     memory = {}
     for confirmed in draws:
         update_narrative_memory(memory, "team_X_collapses_late", confirmed)

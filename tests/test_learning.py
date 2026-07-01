@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 
 from fie.learning import fit_parameters, training_cost, walk_forward_split
 from fie.prediction import Params
+from tests.conftest import SEEDS3
 from tests.generators import league_simulator
 
 TRUE_RATE = 0.015
@@ -15,18 +16,20 @@ WRONG_START = Params(base_rate=0.05)  # deliberately too high
 
 
 @pytest.mark.slow
-def test_fit_reduces_training_loss():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_fit_reduces_training_loss(seed):
     """T-21-01: fit_parameters reduces training log loss vs the untuned start."""
-    train = league_simulator(60, TRUE_RATE, seed=11)
+    train = league_simulator(60, TRUE_RATE, seed=seed)
     fitted = fit_parameters(train, WRONG_START)
     assert training_cost(train, fitted) < training_cost(train, WRONG_START)
 
 
 @pytest.mark.slow
-def test_fit_reduces_heldout_loss():
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_fit_reduces_heldout_loss(seed):
     """T-21-02: the fitted parameters also reduce held-out log loss."""
-    train = league_simulator(60, TRUE_RATE, seed=11)
-    heldout = league_simulator(60, TRUE_RATE, seed=99)  # disjoint, same process
+    train = league_simulator(60, TRUE_RATE, seed=seed)
+    heldout = league_simulator(60, TRUE_RATE, seed=seed + 1000)  # disjoint, same process
     fitted = fit_parameters(train, WRONG_START)
     assert training_cost(heldout, fitted) < training_cost(heldout, WRONG_START)
 
