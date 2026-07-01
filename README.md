@@ -105,3 +105,30 @@ curve shows a small, honest over-prediction (predicts ~27% where ~18.5% occur) �
 exactly the gap that per-competition parameter fitting (Section 21) exists to
 close. `src/fie` stays standard-library only; the connector and DB use
 `urllib` / `sqlite3`.
+
+## Fitting (Phase 3-4)
+
+`scripts/fit_statsbomb.py` runs a **walk-forward** fit of `base_rate` and `tau`
+per competition: on each expanding past window it tunes the parameters to
+minimize log loss, then scores the next block of *future* matches — so any gain
+is out-of-sample, not overfitting.
+
+```bash
+python scripts/fit_statsbomb.py --competition 43 --season 3 --limit 64 --folds 4
+```
+
+On the 2018 World Cup (64 matches, 4 folds, held-out only — see `RESULTS_FIT.md`):
+
+| | Mean predicted | Brier | Log loss |
+|---|---|---|---|
+| Untuned (`base_rate=0.015`) | 0.275 | 0.1797 | 0.5452 |
+| **Fitted (walk-forward)** | **0.211** | 0.1796 | 0.5449 |
+
+Observed event frequency 0.236, so the over-prediction gap `|mean_pred − observed|`
+shrinks **0.040 → 0.025** out of sample. Every fold pulls `base_rate` down to
+0.010–0.012 (from 0.015), confirming the untuned rate was too high for this
+competition. Brier/log loss barely move because at this event rate they are
+dominated by the irreducible noise floor; the win is in **calibration** (the mean
+prediction moving onto the observed frequency), which is what over-prediction was
+about. Not every fold improves (small 12-match test blocks are noisy) — an honest
+walk-forward signal, aggregate positive.
