@@ -1,0 +1,30 @@
+{
+  "match": {
+    "match_id": 999001,
+    "home_team": {"home_team_name": "Alpha"},
+    "away_team": {"away_team_name": "Beta"},
+    "home_score": 1,
+    "away_score": 1
+  },
+  "events": [
+    {"minute": 5, "second": 0, "type": {"name": "Pass"}, "team": {"name": "Gamma"}},
+    {"minute": 10, "second": 0, "type": {"name": "Shot"}, "team": {"name": "Alpha"},
+     "player": {"id": 1, "name": "P1"}, "location": [110, 40],
+     "shot": {"outcome": {"name": "Goal"}, "statsbomb_xg": 0.3}},
+    {"minute": 20, "second": 30, "type": {"name": "Shot"}, "team": {"name": "Beta"},
+     "player": {"id": 2, "name": "P2"}, "location": [100, 40],
+     "shot": {"outcome": {"name": "Saved"}, "statsbomb_xg": 0.1}},
+    {"minute": 25, "second": 0, "type": {"name": "Shot"}, "team": {"name": "Alpha"},
+     "location": [90, 40], "shot": {"outcome": {"name": "Blocked"}, "statsbomb_xg": 0.05}},
+    {"minute": 30, "second": 0, "type": {"name": "Pass"}, "team": {"name": "Alpha"},
+     "pass": {"type": {"name": "Corner"}}},
+    {"minute": 40, "second": 0, "type": {"name": "Foul Committed"}, "team": {"name": "Beta"},
+     "foul_committed": {"card": {"name": "Yellow Card"}}},
+    {"minute": 55, "second": 0, "type": {"name": "Foul Committed"}, "team": {"name": "Beta"},
+     "foul_committed": {"card": {"name": "Red Card"}}},
+    {"minute": 70, "second": 0, "type": {"name": "Bad Behaviour"}, "team": {"name": "Alpha"},
+     "bad_behaviour": {"card": {"name": "Red Card"}}},
+    {"minute": 80, "second": 0, "type": {"name": "Shot"}, "team": {"name": "Beta"},
+     "location": [15, 40], "shot": {"outcome": {"name": "Goal"}, "statsbomb_xg": 0.2}}
+  ]
+}
