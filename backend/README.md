@@ -21,6 +21,16 @@ export DATABASE_URL="postgresql+psycopg://fie_app:<password>@localhost:5432/fie_
 python scripts/init_db.py   # creates every table, idempotent
 ```
 
+## Ingest real data (Phase A2)
+
+Populates matches, events, and player profiles from StatsBomb open data,
+reusing the shared `.sb_cache` at the repo root. Idempotent — safe to re-run.
+
+```bash
+export DATABASE_URL="postgresql+psycopg://fie_app:<password>@localhost:5432/fie_dev"
+python scripts/ingest.py --pairs 43/3 --limit 15   # competition/season pairs
+```
+
 ## Run
 
 ```bash
