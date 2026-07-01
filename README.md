@@ -132,3 +132,29 @@ dominated by the irreducible noise floor; the win is in **calibration** (the mea
 prediction moving onto the observed frequency), which is what over-prediction was
 about. Not every fold improves (small 12-match test blocks are noisy) — an honest
 walk-forward signal, aggregate positive.
+
+### Does the model distinguish competitions? (`RESULTS_COMPARE.md`)
+
+`scripts/compare_competitions.py` fits `base_rate`/`tau` per competition and
+cross-applies each fit to the other. On a fine grid:
+
+| Competition | Matches | Goals/match | Goals/90 | Fitted base_rate |
+|---|---|---|---|---|
+| World Cup 2018 | 64 | 2.64 | 2.46 | 0.012 |
+| Champions League finals | 18 | 3.00 | 2.70 | 0.013 |
+
+Champions League finals score more even per 90 minutes (2.70 vs 2.46 — the raw
+3.00 is partly extra time), and the model fits a **higher `base_rate` (0.013 vs
+0.012)**. Each competition's own parameters beat the other's on its own data, so
+**yes — the model distinguishes them**, though the gap is small (both are elite
+football). A coarse grid hides this; the finer grid reveals it.
+
+### Per-regime calibration (`RESULTS_REGIME.md`)
+
+`scripts/fit_regime_statsbomb.py` walk-forward-fits a per-regime λ scale on top of
+`base_rate`/`tau`. Honest finding: it **does not help** — held-out log loss rises
+(0.5449 → 0.5498) and on the full data every regime's best scale is ~1.0. The base
+multipliers (pressure, score, time, cards) already encode what the regime label
+would add, so the extra per-regime freedom just overfits — exactly Section 24's
+warning. The regime detector's value is in **interpretation** (panel, confidence),
+not as an extra goal-rate multiplier for this target.

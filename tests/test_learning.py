@@ -8,9 +8,11 @@ from hypothesis import strategies as st
 
 from fie.learning import (
     DEFAULT_BASE_RATE_GRID,
+    DEFAULT_REGIME_SCALE_GRID,
     DEFAULT_TAU_GRID,
     evaluate,
     fit_parameters,
+    fit_regime_scale,
     training_cost,
     walk_forward_report,
     walk_forward_split,
@@ -93,6 +95,20 @@ def test_fit_tau_grid_stays_in_grid(seed):
     assert fitted.base_rate in DEFAULT_BASE_RATE_GRID
     assert fitted.tau in DEFAULT_TAU_GRID
     assert training_cost(train, fitted) <= training_cost(train, WRONG_START)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("seed", SEEDS3)
+def test_fit_regime_scale_calibrates_in_sample(seed):
+    """Per-regime scale fitting never worsens in-sample log loss and stays in grid."""
+    matches = league_simulator(60, TRUE_RATE, seed=seed)
+    params = Params(base_rate=0.020)  # miscalibrated -> room for the scales to help
+    fitted = fit_regime_scale(matches, params)
+
+    assert fitted.regime_scale, "expected at least one regime calibrated"
+    for value in fitted.regime_scale.values():
+        assert value in DEFAULT_REGIME_SCALE_GRID or value == 1.0
+    assert evaluate(matches, fitted)["log_loss"] <= evaluate(matches, params)["log_loss"] + 1e-9
 
 
 @pytest.mark.slow

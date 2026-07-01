@@ -9,13 +9,22 @@ aggressive the "goal soon" probabilities are.
 
 from __future__ import annotations
 
+import math
+from collections import defaultdict
 from dataclasses import replace
 
-from .calibration import backtest, brier, log_loss, reliability_curve
+from .calibration import (
+    backtest,
+    brier,
+    iter_match_snapshots,
+    log_loss,
+    reliability_curve,
+)
 
 # Default search grids.
 DEFAULT_BASE_RATE_GRID = (0.008, 0.010, 0.012, 0.015, 0.018, 0.020, 0.025, 0.030)
 DEFAULT_TAU_GRID = (4.0, 6.0, 8.0, 12.0, 16.0)
+DEFAULT_REGIME_SCALE_GRID = (0.6, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0)
 
 
 def training_cost(matches, params, window: float = 10.0) -> float:
@@ -63,6 +72,52 @@ def evaluate(matches, params, window: float = 10.0) -> dict:
         "base_freq": sum(o for _, o in pairs) / n,
         "reliability": reliability_curve(pairs, n_bands=10),
     }
+
+
+def _snapshot_log_loss(observations, scale, window, eps: float = 1e-15) -> float:
+    """Mean log loss over ``(lambda_total, happened)`` snapshots for a scale."""
+    total = 0.0
+    for lam_total, happened in observations:
+        p = 1.0 - math.exp(-scale * lam_total * window)
+        p = min(1.0 - eps, max(eps, p))
+        total += -(happened * math.log(p) + (1 - happened) * math.log(1 - p))
+    return total / len(observations)
+
+
+def fit_regime_scale(
+    matches,
+    params,
+    window: float = 10.0,
+    scale_grid=DEFAULT_REGIME_SCALE_GRID,
+    min_snapshots: int = 40,
+):
+    """Fit a per-regime multiplier on lambda (Section 9 / 20.3).
+
+    The same pressure means different things in different regimes, so each regime
+    gets its own scale, chosen to minimize that regime's log loss on top of the
+    already-fitted ``base_rate``/``tau``. Regimes with fewer than ``min_snapshots``
+    examples are left neutral (1.0) — heeding Section 24's warning that too many
+    thinly-populated regimes just refit noise.
+    """
+    base = replace(params, regime_scale={})  # measure the raw, unscaled lambda
+    groups = defaultdict(list)
+    for match in matches:
+        for snap in iter_match_snapshots(match, base, window):
+            groups[snap["regime"]].append(
+                (snap["lam_home"] + snap["lam_away"], snap["happened"])
+            )
+    scale = dict(params.regime_scale)
+    for regime, obs in groups.items():
+        if len(obs) < min_snapshots:
+            scale[regime] = 1.0
+            continue
+        best_scale, best_cost = 1.0, _snapshot_log_loss(obs, 1.0, window)
+        for candidate in scale_grid:
+            cost = _snapshot_log_loss(obs, candidate, window)
+            if cost < best_cost:
+                best_scale, best_cost = candidate, cost
+        scale[regime] = best_scale
+    return replace(params, regime_scale=scale)
 
 
 def walk_forward_split(items, n_folds: int = 3, key=lambda x: x):
