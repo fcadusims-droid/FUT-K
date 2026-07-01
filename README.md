@@ -158,3 +158,23 @@ multipliers (pressure, score, time, cards) already encode what the regime label
 would add, so the extra per-regime freedom just overfits — exactly Section 24's
 warning. The regime detector's value is in **interpretation** (panel, confidence),
 not as an extra goal-rate multiplier for this target.
+
+## Player profiles (Section 12) — `RESULTS_PROFILES.md`
+
+`scripts/build_profiles.py` accumulates on-ball events across a competition and
+builds each player's DNA — rates/shares, a descriptive archetype, and a
+normalized avatar — persisted to the SQLite `player_profiles` table.
+
+```bash
+python scripts/build_profiles.py --competition 43 --season 3 --limit 64
+```
+
+On the 2018 World Cup (603 players; 465 with >= 60 on-ball actions) the top lists
+double as a sanity check and come out right: Harry Kane / Ronaldo / Lukaku /
+Cheryshev top the scorers (all `finisher`), and Neymar / Ozil / Muller /
+Sigurdsson top the key-pass creators (all `creator`). Archetypes are descriptive
+labels read from observed shares — hypotheses, not ground truth (Section 12's
+honest-data warning). The connector extracts the rich StatsBomb fields (pass
+completion, progression, shot/goal assists, dribbles, turnovers) that the live
+`Event` model does not carry; `fie.profiling` derives the profiles
+source-agnostically and reuses the validated `players.avatar()`.

@@ -101,6 +101,65 @@ def events_from_statsbomb(raw_events, home_team, away_team, match_id):
     return out
 
 
+# On-ball action types that count toward a player's involvement volume.
+ONBALL_TYPES = {"Pass", "Shot", "Dribble", "Carry"}
+
+
+def accumulate_player_stats(raw_events, home_team, away_team, table=None):
+    """Accumulate per-player counters (Section 12) from a match's raw events.
+
+    Updates ``table`` (``{player_id: record}``) in place across matches so a whole
+    competition's DNA can be built by calling this once per match.
+    """
+    from ..profiling import new_record  # local import avoids a cycle at module load
+
+    table = table if table is not None else {}
+    for e in raw_events:
+        player = e.get("player") or {}
+        pid = player.get("id")
+        if pid is None:
+            continue
+        team_name = e.get("team", {}).get("name")
+        if team_name == home_team:
+            team = "HOME"
+        elif team_name == away_team:
+            team = "AWAY"
+        else:
+            continue
+        rec = table.get(str(pid))
+        if rec is None:
+            rec = new_record(pid, player.get("name"), team, e.get("position", {}).get("name"))
+            table[str(pid)] = rec
+
+        etype = e.get("type", {}).get("name")
+        if etype in ONBALL_TYPES:
+            rec["actions"] += 1
+        if etype == "Pass":
+            pinfo = e.get("pass", {})
+            rec["passes"] += 1
+            if "outcome" not in pinfo:  # StatsBomb: completed passes carry no outcome
+                rec["passes_completed"] += 1
+                loc = e.get("location")
+                end = pinfo.get("end_location")
+                if loc and end and (end[0] - loc[0]) >= 15.0:
+                    rec["progressive"] += 1
+            if pinfo.get("shot_assist"):
+                rec["key_passes"] += 1
+            if pinfo.get("goal_assist"):
+                rec["assists"] += 1
+        elif etype == "Shot":
+            rec["shots"] += 1
+            if e.get("shot", {}).get("outcome", {}).get("name") == "Goal":
+                rec["goals"] += 1
+        elif etype == "Dribble":
+            rec["dribbles"] += 1
+            if e.get("dribble", {}).get("outcome", {}).get("name") == "Complete":
+                rec["dribbles_completed"] += 1
+        elif etype in ("Dispossessed", "Miscontrol"):
+            rec["turnovers"] += 1
+    return table
+
+
 def match_dict_from_statsbomb(raw_match, raw_events):
     """Build a backtest-ready match dict from a StatsBomb match + its events."""
     match_id = str(raw_match["match_id"])
@@ -231,3 +290,14 @@ class StatsBombSource(Source):
 
     def stream(self, match_id):
         yield from self.match(match_id)["events"]
+
+    def raw_events(self, match_id):
+        """The unmapped StatsBomb event array (needed for player profiling)."""
+        return self._events_loader(match_id)
+
+    def player_stats(self, match_id, table=None):
+        """Accumulate per-player counters (Section 12) for one match into ``table``."""
+        raw_match = self._match_index()[str(match_id)]
+        home = raw_match["home_team"]["home_team_name"]
+        away = raw_match["away_team"]["away_team_name"]
+        return accumulate_player_stats(self.raw_events(match_id), home, away, table)

@@ -56,6 +56,25 @@ CREATE TABLE IF NOT EXISTS outcomes (
     happened      INTEGER
 );
 
+-- Consolidated "DNA" of each player (Section 12)
+CREATE TABLE IF NOT EXISTS player_profiles (
+    player_id        TEXT PRIMARY KEY,
+    name             TEXT,
+    team             TEXT,
+    position         TEXT,
+    actions          INTEGER,
+    passes           INTEGER,
+    shots            INTEGER,
+    goals            INTEGER,
+    assists          INTEGER,
+    pass_accuracy    REAL,
+    progressive_pass REAL,
+    key_pass_rate    REAL,
+    shot_share       REAL,
+    turnover_rate    REAL,
+    archetype        TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_events_match ON events(match_id);
 CREATE INDEX IF NOT EXISTS idx_pred_match ON predictions(match_id);
 """
@@ -121,3 +140,26 @@ def prediction_pairs(conn):
         "JOIN outcomes o ON o.prediction_id = p.id"
     ).fetchall()
     return [(float(p), int(h)) for p, h in rows]
+
+
+def insert_player_profile(conn, profile):
+    """Persist one player DNA profile (Section 12)."""
+    conn.execute(
+        "INSERT OR REPLACE INTO player_profiles "
+        "(player_id, name, team, position, actions, passes, shots, goals, assists, "
+        " pass_accuracy, progressive_pass, key_pass_rate, shot_share, turnover_rate, "
+        " archetype) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (
+            profile["player_id"], profile["name"], profile["team"], profile["position"],
+            profile["actions"], profile["passes"], profile["shots"], profile["goals"],
+            profile["assists"], profile["pass_accuracy"], profile["progressive_pass_share"],
+            profile["key_pass_rate"], profile["shot_share"], profile["turnover_rate"],
+            profile["archetype"],
+        ),
+    )
+
+
+def insert_player_profiles(conn, profiles):
+    for profile in profiles:
+        insert_player_profile(conn, profile)
+    conn.commit()

@@ -1,0 +1,39 @@
+{
+  "home_team": "Alpha",
+  "away_team": "Beta",
+  "events": [
+    {"type": {"name": "Pass"}, "team": {"name": "Gamma"},
+     "player": {"id": 300, "name": "Outsider"}, "location": [50, 40],
+     "pass": {"end_location": [70, 40]}},
+
+    {"type": {"name": "Shot"}, "team": {"name": "Alpha"},
+     "player": {"id": 100, "name": "Striker"}, "position": {"name": "Center Forward"},
+     "location": [110, 40], "shot": {"outcome": {"name": "Goal"}, "statsbomb_xg": 0.4}},
+    {"type": {"name": "Shot"}, "team": {"name": "Alpha"},
+     "player": {"id": 100, "name": "Striker"}, "location": [100, 38],
+     "shot": {"outcome": {"name": "Saved"}, "statsbomb_xg": 0.1}},
+    {"type": {"name": "Pass"}, "team": {"name": "Alpha"},
+     "player": {"id": 100, "name": "Striker"}, "location": [40, 40],
+     "pass": {"end_location": [70, 40]}},
+    {"type": {"name": "Pass"}, "team": {"name": "Alpha"},
+     "player": {"id": 100, "name": "Striker"}, "location": [80, 40],
+     "pass": {"end_location": [82, 41], "outcome": {"name": "Incomplete"}}},
+    {"type": {"name": "Dribble"}, "team": {"name": "Alpha"},
+     "player": {"id": 100, "name": "Striker"},
+     "dribble": {"outcome": {"name": "Complete"}}},
+    {"type": {"name": "Dispossessed"}, "team": {"name": "Alpha"},
+     "player": {"id": 100, "name": "Striker"}},
+
+    {"type": {"name": "Pass"}, "team": {"name": "Alpha"},
+     "player": {"id": 200, "name": "Playmaker"}, "position": {"name": "Attacking Mid"},
+     "location": [60, 40], "pass": {"end_location": [95, 42], "shot_assist": true}},
+    {"type": {"name": "Pass"}, "team": {"name": "Alpha"},
+     "player": {"id": 200, "name": "Playmaker"}, "location": [70, 40],
+     "pass": {"end_location": [112, 44], "goal_assist": true}},
+    {"type": {"name": "Pass"}, "team": {"name": "Alpha"},
+     "player": {"id": 200, "name": "Playmaker"}, "location": [50, 40],
+     "pass": {"end_location": [90, 40]}},
+    {"type": {"name": "Carry"}, "team": {"name": "Alpha"},
+     "player": {"id": 200, "name": "Playmaker"}, "carry": {"end_location": [55, 40]}}
+  ]
+}
