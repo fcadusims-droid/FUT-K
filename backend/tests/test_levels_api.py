@@ -75,3 +75,17 @@ def test_benchmarks_payload(client):
 def test_search(client, league):
     rows = client.get("/search", params={"q": "alpha"}).json()
     assert {r["id"] for r in rows} == {"m1", "m3"}
+
+
+def test_plugins_endpoint_runs_expected_chaos(client, league):
+    out = client.get("/matches/m1/plugins").json()
+    assert "expected_chaos" in out
+    chaos = out["expected_chaos"]
+    assert 0.0 <= chaos["value"] <= 1.0
+    assert chaos["components"]["lead_changes"] >= 1
+    assert "summary" in chaos and "description" in chaos
+
+
+def test_match_detail_carries_events_hash_field(client, league):
+    body = client.get("/matches/m1").json()
+    assert "events_hash" in body  # provenance surfaced (None for seeded fixtures)

@@ -84,6 +84,8 @@ StatsBomb open data ──ingest──> PostgreSQL ──FastAPI──> React re
 
 | Directory | What it is |
 |---|---|
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | **the stable core**: 4 layers (Core → Inference → Knowledge → Application), one dependency rule, enforced by a test |
+| [`plugins/`](./plugins/) | drop-in match-metric plugins (reference: `expected_chaos`) — extend FUT-K with zero core edits |
 | [`backend/`](./backend/) | FastAPI service: production schema, multi-competition ingestion pipeline, replay/prediction API |
 | [`frontend/`](./frontend/) | React + Vite app: the match catalog and the minute-by-minute intelligent panel |
 | [`src/fie/`](./src/fie/) | the engine — one module per section of the design document (indices, Poisson prediction, regimes, confidence, players, narrative, calibration, learning) |

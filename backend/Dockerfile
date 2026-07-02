@@ -5,6 +5,7 @@ WORKDIR /srv/futk
 # Engine first (the backend depends on it as a local package).
 COPY pyproject.toml conftest.py README.md ./
 COPY src ./src
+COPY plugins ./plugins
 COPY backend/pyproject.toml backend/
 COPY backend/app backend/app
 COPY backend/scripts backend/scripts

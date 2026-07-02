@@ -8,6 +8,8 @@ the pipeline is safe to re-run as more data becomes available (Phase A3).
 
 from __future__ import annotations
 
+import hashlib
+
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
@@ -18,9 +20,18 @@ from .models import Match, MatchEvent, PlayerProfile
 
 
 def ingest_match(session: Session, source: StatsBombSource, match_id) -> str:
-    """Upsert one match and replace its events. Returns the match id (str)."""
+    """Upsert one match and replace its events. Returns the match id (str).
+
+    ``events_hash`` records data provenance: a deterministic digest of the
+    normalized event stream, so any experiment can state exactly which data
+    produced it (audit level 18 / data versioning).
+    """
     match = source.match(match_id)
     mid = match["match_id"]
+    digest = hashlib.sha256(
+        "|".join(f"{e.minute:.3f},{e.team},{e.type},{e.player_id}"
+                 for e in match["events"]).encode()
+    ).hexdigest()[:16]
 
     session.merge(
         Match(
@@ -32,6 +43,7 @@ def ingest_match(session: Session, source: StatsBombSource, match_id) -> str:
             away_team=match["away_team"],
             status="finished",
             home_goals_final=match.get("home_score"),
+            events_hash=digest,
             away_goals_final=match.get("away_score"),
         )
     )

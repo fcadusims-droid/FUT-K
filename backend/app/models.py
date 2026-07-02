@@ -28,6 +28,7 @@ class Match(Base):
     away_team: Mapped[str | None] = mapped_column(String)
     status: Mapped[str | None] = mapped_column(String)
     home_goals_final: Mapped[int | None] = mapped_column(Integer)
+    events_hash: Mapped[str | None] = mapped_column(String)  # data provenance (level 18)
     away_goals_final: Mapped[int | None] = mapped_column(Integer)
 
     events: Mapped[list["MatchEvent"]] = relationship(back_populates="match")

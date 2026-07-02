@@ -7,6 +7,13 @@ probabilities, not laws.
 
 from __future__ import annotations
 
+# Re-exported from the core: the adjustment is a lambda multiplier, so it lives
+# in fie.prediction; the Knowledge-layer surface (and tests T-13-04/05) keep
+# importing it from here.
+from .prediction import coach_adjustment
+
+__all__ = ["coach_profile", "coach_adjustment", "coaching_philosophy"]
+
 
 def coach_profile(coach_matches, *, tactical_tendency=None,
                   substitution_pattern=None, post_event_pattern=None) -> dict:
@@ -26,16 +33,6 @@ def coach_profile(coach_matches, *, tactical_tendency=None,
     profile["subs"] = substitution_pattern(coach_matches)
     profile["reaction"] = post_event_pattern(coach_matches)
     return profile
-
-
-def coach_adjustment(state, team: str, profile: dict) -> float:
-    """Coach-specific score effect. A coarse, 3-valued function (T-13-05)."""
-    diff = state.goal_diff(team)
-    if diff > 0 and profile.get("winning") == "retreat":
-        return 0.85
-    if diff < 0 and profile.get("losing") == "press":
-        return 1.20
-    return 1.0
 
 
 def coaching_philosophy(profile: dict) -> str:
