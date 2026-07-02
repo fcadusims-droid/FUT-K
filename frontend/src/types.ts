@@ -34,3 +34,9 @@ export interface PanelState {
   }
   explanation: { claim: string; because: string[]; note: string }
 }
+
+export interface StoryBeat {
+  minute: number
+  headline: string
+  detail: string
+}

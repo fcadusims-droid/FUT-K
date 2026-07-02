@@ -1,4 +1,4 @@
-import type { MatchDetail, MatchSummary, PanelState } from './types'
+import type { MatchDetail, MatchSummary, PanelState, StoryBeat } from './types'
 
 const BASE = '/api'
 
@@ -15,3 +15,6 @@ export const fetchMatchDetail = (id: string) => get<MatchDetail>(`/matches/${id}
 
 export const fetchTimeline = (id: string, step = 1) =>
   get<PanelState[]>(`/matches/${id}/timeline?step=${step}`)
+
+export const fetchStory = (id: string) =>
+  get<StoryBeat[]>(`/matches/${id}/story`)
