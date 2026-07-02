@@ -1,0 +1,41 @@
+# FUT-K as a service (product level 16). `docker compose up` then open :8080.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: futk
+      POSTGRES_PASSWORD: ${FUTK_DB_PASSWORD:-futk_dev_pw}
+      POSTGRES_DB: futk
+    volumes:
+      - futk_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futk"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://futk:${FUTK_DB_PASSWORD:-futk_dev_pw}@postgres:5432/futk
+      FUTK_API_KEYS: ${FUTK_API_KEYS:-}
+      FUTK_RATE_LIMIT: ${FUTK_RATE_LIMIT:-120}
+    volumes:
+      - futk_sbcache:/srv/futk/.sb_cache   # StatsBomb raw cache (network view)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  futk_pgdata:
+  futk_sbcache:

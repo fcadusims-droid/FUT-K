@@ -9,7 +9,7 @@ of one throwaway SQLite file per script.
 
 from __future__ import annotations
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -142,3 +142,34 @@ class Influence(Base):
     delta: Mapped[float] = mapped_column(Float)
     on_minutes: Mapped[float] = mapped_column(Float)
     off_minutes: Mapped[float] = mapped_column(Float)
+
+
+class IngestionRun(Base):
+    """Audit log for the automated data pipeline (product level 18)."""
+
+    __tablename__ = "ingestion_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    started_at: Mapped[str] = mapped_column(String)          # ISO timestamp
+    pairs: Mapped[str] = mapped_column(String)               # e.g. "11/27"
+    matches_added: Mapped[int] = mapped_column(Integer)
+    matches_skipped: Mapped[int] = mapped_column(Integer)    # already present
+    matches_failed: Mapped[int] = mapped_column(Integer)
+    quality_ok: Mapped[bool] = mapped_column(Boolean)
+    quality_notes: Mapped[str | None] = mapped_column(String)
+
+
+class ModelVersion(Base):
+    """The continuous-learning loop's version history (product level 19)."""
+
+    __tablename__ = "model_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_at: Mapped[str] = mapped_column(String)
+    competition: Mapped[str | None] = mapped_column(String)
+    base_rate: Mapped[float] = mapped_column(Float)
+    tau: Mapped[float] = mapped_column(Float)
+    holdout_log_loss: Mapped[float] = mapped_column(Float)
+    baseline_log_loss: Mapped[float] = mapped_column(Float)  # active params, same holdout
+    promoted: Mapped[bool] = mapped_column(Boolean)
+    note: Mapped[str | None] = mapped_column(String)

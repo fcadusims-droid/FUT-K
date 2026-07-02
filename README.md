@@ -134,6 +134,22 @@ Also in the repo: **SDKs** (Python + JavaScript, [`sdk/`](./sdk/)), the
 Consensus and the panel, and the **product definition**
 ([`docs/product/PRODUCT.md`](./docs/product/PRODUCT.md)).
 
+## Running it as a service
+
+```bash
+docker compose up --build     # postgres + backend (:8000) + frontend (:8080)
+```
+
+Operations are built in: `GET /metrics` (per-route latency/errors) and
+`/metrics/prometheus`; optional API keys + rate limiting via env
+(`FUTK_API_KEYS`, `FUTK_RATE_LIMIT`); incremental audited data refresh
+(`backend/scripts/refresh.py`, history in `ingestion_runs`); and the
+**continuous learning cycle** (`backend/scripts/recalibrate.py`) — refit on
+new data, promote **only if held-out metrics don't degrade**, version history
+at `GET /model/versions`, the panel always serving the latest promoted
+version. See [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) and
+[`PRIVACY.md`](./PRIVACY.md).
+
 ## License & credits
 
 **FUT-K** — created by **João Vitor Perazzolo** (*Johnny Kestler*).
