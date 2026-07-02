@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchMatchDetail, fetchStory, fetchTimeline } from '../api'
 import type { MatchDetail, PanelState, StoryBeat } from '../types'
 import { MiniCurves } from './MiniCurves'
+import { NetworkView } from './NetworkView'
 import { Panel } from './Panel'
 import { TimelineChart } from './TimelineChart'
 
@@ -23,6 +24,7 @@ export function ReplayView({ matchId, onBack }: Props) {
   const [analyst, setAnalyst] = useState(false)
   const [story, setStory] = useState<StoryBeat[] | null>(null)
   const [showStory, setShowStory] = useState(true)
+  const [showNetwork, setShowNetwork] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const timer = useRef<number | undefined>(undefined)
 
@@ -162,9 +164,17 @@ export function ReplayView({ matchId, onBack }: Props) {
         <button onClick={() => setShowStory((v) => !v)} style={{ marginRight: 8 }}>
           {showStory ? 'Hide story' : 'Match story'}
         </button>
+        <button onClick={() => setShowNetwork((v) => !v)} style={{ marginRight: 8 }}>
+          {showNetwork ? 'Hide passing network' : 'Passing network'}
+        </button>
         <button onClick={() => setShowTable((s) => !s)}>
           {showTable ? 'Hide table view' : 'Table view'}
         </button>
+        {showNetwork && (
+          <div style={{ marginTop: 12 }}>
+            <NetworkView matchId={matchId} homeName={homeName} awayName={awayName} />
+          </div>
+        )}
         {showTable && (
           <table style={{ marginTop: 10 }}>
             <thead>

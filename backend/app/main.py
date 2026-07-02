@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from .db import get_db
 from .insights import PRESETS, run_query
+from .network import DEFAULT_CACHE, network_payload
 from .models import Match, MatchEvent, PlayerProfile
 from .panel import _row_to_event, panel_state
 from .story import humanize_panel, match_story
@@ -153,6 +154,27 @@ def match_story_endpoint(match_id: str, db: Session = Depends(get_db)) -> list[d
     ]
     goal_minutes = [{"minute": e.minute, "team": e.team} for e in events if e.type == "goal"]
     return match_story(timeline, goal_minutes, m.home_team or "HOME", m.away_team or "AWAY")
+
+
+@app.get("/matches/{match_id}/network")
+def match_network(
+    match_id: str,
+    side: str = Query("HOME", pattern="^(HOME|AWAY)$"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The team's passing network for this match (Section 12, Layer 5)."""
+    m = _get_match(db, match_id)
+    team_name = m.home_team if side == "HOME" else m.away_team
+    try:
+        from fie.sources.statsbomb import fetch_events
+
+        raw = fetch_events(match_id, cache_dir=DEFAULT_CACHE)
+    except Exception as exc:  # noqa: BLE001 - cache miss + no network
+        raise HTTPException(status_code=503,
+                            detail=f"raw event data unavailable: {exc}") from exc
+    payload = network_payload(raw, team_name or side)
+    payload["side"] = side
+    return payload
 
 
 @app.get("/insights/presets")
