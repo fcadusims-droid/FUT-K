@@ -18,9 +18,13 @@ from .ask import answer as ask_answer
 from .benchmarks import BENCHMARKS
 from .evolution import team_evolution
 from .insights import PRESETS, run_query
+from .learningloop import get_active_params
+from .models import ModelVersion
 from .similarity import match_vector, similar_matches
 from .network import DEFAULT_CACHE, network_payload
 from .models import Match, MatchEvent, PlayerProfile
+from .observability import MetricsMiddleware, metrics
+from .security import SecurityMiddleware
 from .panel import _row_to_event, panel_state
 from .story import humanize_panel, match_story
 
@@ -35,9 +39,27 @@ app = FastAPI(
 )
 
 
+# Middleware order: metrics outermost (times everything, incl. 401/429).
+app.add_middleware(SecurityMiddleware)
+app.add_middleware(MetricsMiddleware)
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+def metrics_json() -> dict:
+    """Observability (level 15): per-route counts, errors, latency."""
+    return metrics.snapshot()
+
+
+@app.get("/metrics/prometheus")
+def metrics_prom():
+    from starlette.responses import PlainTextResponse
+
+    return PlainTextResponse(metrics.prometheus())
 
 
 @app.get("/matches")
@@ -111,7 +133,7 @@ def match_state(
     """The intelligent panel (Section 22) at one minute of the match."""
     _get_match(db, match_id)
     events = _load_events(db, match_id)
-    return panel_state(events, minute, match_id=match_id)
+    return panel_state(events, minute, match_id=match_id, params=get_active_params(db))
 
 
 @app.get("/matches/{match_id}/timeline")
@@ -125,7 +147,7 @@ def match_timeline(
     events = _load_events(db, match_id)
     duration = int(max((e.minute for e in events), default=90.0))
     return [
-        panel_state(events, float(minute), match_id=match_id)
+        panel_state(events, float(minute), match_id=match_id, params=get_active_params(db))
         for minute in range(step, duration + 1, step)
     ]
 
@@ -139,7 +161,7 @@ def match_state_human(
     """The panel in plain language (product level 3) + the raw panel."""
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
-    panel = panel_state(events, minute, match_id=match_id)
+    panel = panel_state(events, minute, match_id=match_id, params=get_active_params(db))
     return {
         "human": humanize_panel(panel, m.home_team or "HOME", m.away_team or "AWAY"),
         "panel": panel,
@@ -153,7 +175,7 @@ def match_story_endpoint(match_id: str, db: Session = Depends(get_db)) -> list[d
     events = _load_events(db, match_id)
     duration = math.ceil(max((e.minute for e in events), default=90.0))
     timeline = [
-        panel_state(events, float(t), match_id=match_id)
+        panel_state(events, float(t), match_id=match_id, params=get_active_params(db))
         for t in range(1, duration + 1)
     ]
     goal_minutes = [{"minute": e.minute, "team": e.team} for e in events if e.type == "goal"]
@@ -211,7 +233,7 @@ def _ask_context(db: Session, match_id: str) -> dict:
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
     duration = math.ceil(max((e.minute for e in events), default=90.0))
-    timeline = [panel_state(events, float(t), match_id=match_id)
+    timeline = [panel_state(events, float(t), match_id=match_id, params=get_active_params(db))
                 for t in range(1, duration + 1)]
     goal_minutes = [{"minute": e.minute, "team": e.team}
                     for e in events if e.type == "goal"]
@@ -246,7 +268,7 @@ def explain_endpoint(match_id: str, minute: float = Query(..., ge=0, le=150),
     evidence -> reliability."""
     _get_match(db, match_id)
     events = _load_events(db, match_id)
-    panel = panel_state(events, minute, match_id=match_id)
+    panel = panel_state(events, minute, match_id=match_id, params=get_active_params(db))
     because = panel["explanation"]["because"]
     return {
         "claim": panel["explanation"]["claim"],
@@ -260,6 +282,21 @@ def explain_endpoint(match_id: str, minute: float = Query(..., ge=0, le=150),
         },
         "reliability": panel["confidence"],
     }
+
+
+@app.get("/model/versions")
+def model_versions(db: Session = Depends(get_db)) -> list[dict]:
+    """The learning loop's version history (level 19). The latest promoted
+    version is what the panel currently serves."""
+    rows = db.execute(select(ModelVersion).order_by(ModelVersion.id.desc())).scalars().all()
+    return [
+        {"id": v.id, "created_at": v.created_at, "competition": v.competition,
+         "base_rate": v.base_rate, "tau": v.tau,
+         "holdout_log_loss": v.holdout_log_loss,
+         "baseline_log_loss": v.baseline_log_loss,
+         "promoted": v.promoted, "note": v.note}
+        for v in rows
+    ]
 
 
 @app.get("/benchmarks")

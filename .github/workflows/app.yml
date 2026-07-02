@@ -1,0 +1,42 @@
+name: app
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install engine + backend
+        run: |
+          pip install -e .
+          pip install -e "./backend[dev]"
+      - name: Backend tests
+        run: pytest -q backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build (tsc strict + vite)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -f backend/Dockerfile -t futk-backend:ci .
+      - name: Build frontend image
+        run: docker build -t futk-frontend:ci ./frontend
