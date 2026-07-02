@@ -21,13 +21,14 @@ Using the standard four-level ladder for systems like this:
 | 1. Conceptual architecture | the model is defined | ✅ complete (`docs/design/`) |
 | 2. Implementation | the model is software | ✅ complete (engine + app) |
 | 3. Internal validation | algorithms provably do what the spec says | ✅ complete (§2 below) |
-| 4. External validation | performance measured on real competitions | 🟡 **in progress** — real-data calibration on 3 competitions done (§3–§5); larger samples and external baselines (Elo, market odds) still open (§7) |
+| 4. External validation | performance measured on real competitions | ✅ **first pass complete** — leakage-safe calibration on 3 competitions, multi-target scoring, and an external benchmark against Elo and bookmaker odds (§5.6); remaining open work in §7 |
 
-We deliberately do **not** claim level 4 is finished. What exists at level 4
-today is: leakage-safe backtests on 462 real matches across three competitions,
-walk-forward parameter fitting with honest held-out metrics, and a baseline
-comparison against the constant base-rate predictor. What does not exist yet is
-listed in §7.
+Level 4's first pass covers: leakage-safe backtests on 462 real matches across
+three competitions, walk-forward fitting with honest held-out metrics, three
+scored targets (goals, corners, cards), constant-baseline comparisons at two
+scales, and an **external anchor** — the engine's Poisson machinery scored on
+the same matches as classic Elo and de-margined Bet365 odds. What remains
+(live-stream validation, more leagues, ROI-style market analysis) is in §7.
 
 ---
 
@@ -37,7 +38,7 @@ Every mechanism in the engine is tested against synthetic data with a *known*
 generator, so pass/fail is objective. The full plan is
 [`docs/design/validation_test_plan.md`](../docs/design/validation_test_plan.md)
 — 89 numbered test IDs (`T-SS-NN`), all implemented, plus property-based tests
-(hypothesis) and multi-seed Monte-Carlo runs. **189 engine tests + 18 API tests
+(hypothesis) and multi-seed Monte-Carlo runs. **198 engine tests + 18 API tests
 green in CI** (Python 3.11 & 3.12).
 
 Reference numbers reproduced (see [`results/RESULTS.md`](./results/RESULTS.md),
@@ -111,6 +112,17 @@ sample size, in-play state adds a small, real, but modest amount of signal
 beyond the base rate. That is the truthful current state, not a limitation we
 hide.
 
+**At scale (La Liga 2015/16, all 380 matches, 5 folds —
+[`results/RESULTS_FIT_LALIGA.md`](./results/RESULTS_FIT_LALIGA.md)):** the
+mirror-image result. The league's observed frequency (0.266) almost exactly
+matches the untuned default (`base_rate=0.015` → mean prediction 0.274, gap
+0.009), so there was nothing for fitting to fix — and walk-forward refitting on
+early-season windows *slightly hurt* (log loss 0.5789 → 0.5838). The untuned
+engine statistically ties the constant baseline (0.5789 vs 0.5793). Together
+the two experiments show the methodology **measures** rather than manufactures
+improvement: fitting helps when the prior is wrong (World Cup), and adds noise
+when the prior is already right (La Liga).
+
 ### 5.2 The model distinguishes competitions
 
 From [`results/RESULTS_COMPARE.md`](./results/RESULTS_COMPARE.md) — fit each
@@ -157,6 +169,42 @@ not adopted.
   rested during blowouts look "negative") — exactly the trap the design doc
   warns about; presented as such, not as a player ranking.
 
+### 5.6 External benchmark: the machinery vs Elo and the market
+
+From [`results/RESULTS_BENCHMARK.md`](./results/RESULTS_BENCHMARK.md) — the
+match-outcome (1X2) target on La Liga 2015/16, walk-forward with a 60-match
+burn-in, real Bet365 closing odds from football-data.co.uk (320 matches scored):
+
+| Predictor | Brier (1X2) ↓ | Log loss (1X2) ↓ |
+|---|---|---|
+| Trailing frequencies (naive baseline) | 0.6323 | 1.0500 |
+| Elo (classic) | 0.6004 | 1.0073 |
+| **Attack/defense Poisson (engine machinery)** | **0.5802** | **0.9758** |
+| Bookmaker implied (Bet365, de-margined) | 0.5407 | 0.9164 |
+
+The ordering is exactly what a sane, honestly calibrated system should show:
+**naive < Elo < our Poisson < market**. The engine's Poisson core, given only
+public results, beats the classic Elo baseline and sits below the closing line
+— which aggregates far more information than public data and is the expected
+ceiling. We do not claim to beat the market, and this table is the proof the
+claim is not needed for the machinery to be sound.
+
+### 5.7 Multi-target: corners and cards
+
+From [`results/RESULTS_TARGETS.md`](./results/RESULTS_TARGETS.md) — the same
+leakage-safe walk-forward on La Liga 380 (4,878 held-out snapshots per target):
+
+| Target (next 10 min) | Observed freq | Constant rate (LL) | Pressure-scaled (LL) |
+|---|---|---|---|
+| Corner | 0.659 | **0.6414** | 0.7247 |
+| Card | 0.448 | **0.6890** | 0.7322 |
+
+Two findings: (a) the engine's per-event Poisson formulas are now **scored on
+real data** for corners and cards, not just goals; (b) another honest negative —
+naive pressure-scaling makes both targets *worse*; the constant train-fit rate
+is the better-calibrated predictor. In-play state, as currently featurized,
+carries little marginal signal for these targets.
+
 ---
 
 ## 6. Reproducibility
@@ -190,6 +238,16 @@ python scripts/fit_learned_statsbomb.py --limit 64 --folds 4
 python scripts/build_profiles.py  --competition 43 --season 3 --limit 64
 python scripts/build_networks.py  --team Barcelona
 python scripts/build_influence.py --team Barcelona
+
+# 7. calibration at scale (full La Liga 2015/16 — large download on first run)
+python scripts/fit_statsbomb.py --competition 11 --season 27 --limit 380 \
+    --folds 5 --out validation/results/RESULTS_FIT_LALIGA.md
+
+# 8. multi-target: corners and cards
+python scripts/fit_targets_statsbomb.py
+
+# 9. external benchmark vs Elo and Bet365 odds (downloads football-data.co.uk CSV)
+python scripts/benchmark_external.py
 ```
 
 Each script rewrites its report in `validation/results/` — the committed
@@ -200,19 +258,22 @@ the StatsBomb dataset is versioned upstream by its git history.
 
 ## 7. What is NOT validated yet (open work)
 
-Transparency about the gap between here and full external validation:
+Closed since the first version of this document: ~~external baselines (Elo,
+market odds)~~ → §5.6; ~~single-target evaluation~~ → §5.7; ~~small in-play
+sample~~ → §5.1 at 380 matches. Still genuinely open:
 
-- **No comparison against external baselines** — Elo ratings, bookmaker odds,
-  or public xG models. This is the single most important missing benchmark.
-- **No betting-market metrics** (ROI, accuracy vs closing lines). Note the
-  project's stated goal is *understanding*, not betting — but the comparison
-  would still anchor the calibration externally.
-- **Single-target evaluation.** Only *goal-in-next-10-minutes* has been scored
-  at scale; corners/cards/next-scorer targets exist in the engine but have no
-  real-data calibration report yet.
-- **Sample size.** 462 matches is enough to measure calibration honestly, not
-  enough to resolve small effects (the competition differences in §5.2 are
-  consistent but small).
+- **No betting-market profitability analysis** (ROI, edge vs closing lines).
+  §5.6 shows we sit below the market, as expected with public data; the
+  project's goal is *understanding*, not betting, so this stays low priority.
+- **In-play marginal signal is thin.** Across goals (§5.1 at scale), corners
+  and cards (§5.7), the current in-play features add little beyond well-fit
+  base rates. Making the in-play state genuinely predictive (richer features,
+  player availability, xG-weighted pressure) is the main open *research*
+  question — the panel's interpretive value does not depend on it, but its
+  predictive edge does.
+- **One league season.** The full-league conclusions rest on La Liga 2015/16;
+  other Big-5 seasons exist in StatsBomb open data and should replicate these
+  numbers before they are treated as general.
 - **No live-stream validation** — all real-data work is historical replay. The
   latency and consensus layers of the design doc (Sections 4, 16) are not yet
-  exercised against live feeds.
+  exercised against live feeds. This is the bridge to the product phase.
