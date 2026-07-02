@@ -3,8 +3,9 @@
 // A table view twin keeps every value reachable without hover (a11y rule).
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchMatchDetail, fetchTimeline } from '../api'
-import type { MatchDetail, PanelState } from '../types'
+import { fetchMatchDetail, fetchStory, fetchTimeline } from '../api'
+import type { MatchDetail, PanelState, StoryBeat } from '../types'
+import { MiniCurves } from './MiniCurves'
 import { Panel } from './Panel'
 import { TimelineChart } from './TimelineChart'
 
@@ -19,6 +20,9 @@ export function ReplayView({ matchId, onBack }: Props) {
   const [idx, setIdx] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [showTable, setShowTable] = useState(false)
+  const [analyst, setAnalyst] = useState(false)
+  const [story, setStory] = useState<StoryBeat[] | null>(null)
+  const [showStory, setShowStory] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const timer = useRef<number | undefined>(undefined)
 
@@ -30,6 +34,7 @@ export function ReplayView({ matchId, onBack }: Props) {
         setDetail(d)
         setTimeline(t)
         setIdx(0)
+        fetchStory(matchId).then((s) => alive && setStory(s)).catch(() => {})
       })
       .catch((e) => alive && setError(String(e)))
     return () => {
@@ -91,8 +96,34 @@ export function ReplayView({ matchId, onBack }: Props) {
       </div>
 
       <div className="card">
-        <Panel panel={panel} homeName={homeName} awayName={awayName} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <button onClick={() => setAnalyst((a) => !a)}>
+            {analyst ? 'Simple view' : 'Analyst mode'}
+          </button>
+        </div>
+        <Panel panel={panel} homeName={homeName} awayName={awayName} analyst={analyst} />
       </div>
+
+      {story && showStory && (
+        <div className="card">
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+            Match Story
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {story.map((b, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, cursor: 'pointer' }}
+                   onClick={() => seek(b.minute)}>
+                <span style={{ flex: '0 0 34px', textAlign: 'right', fontWeight: 600,
+                               fontVariantNumeric: 'tabular-nums' }}>{b.minute}&#39;</span>
+                <span>
+                  <strong>{b.headline}</strong>{' '}
+                  <span style={{ color: 'var(--text-secondary)' }}>{b.detail}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <TimelineChart
@@ -103,6 +134,8 @@ export function ReplayView({ matchId, onBack }: Props) {
           homeName={homeName}
           awayName={awayName}
         />
+
+        {analyst && <MiniCurves timeline={timeline} homeName={homeName} awayName={awayName} />}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
           <button className="primary" onClick={() => setPlaying((p) => !p)}>
@@ -126,6 +159,9 @@ export function ReplayView({ matchId, onBack }: Props) {
       </div>
 
       <div className="card">
+        <button onClick={() => setShowStory((v) => !v)} style={{ marginRight: 8 }}>
+          {showStory ? 'Hide story' : 'Match story'}
+        </button>
         <button onClick={() => setShowTable((s) => !s)}>
           {showTable ? 'Hide table view' : 'Table view'}
         </button>

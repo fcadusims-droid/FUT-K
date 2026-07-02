@@ -12,8 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .db import get_db
+from .insights import PRESETS, run_query
 from .models import Match, MatchEvent, PlayerProfile
 from .panel import _row_to_event, panel_state
+from .story import humanize_panel, match_story
 
 app = FastAPI(
     title="Football Intelligence Engine API",
@@ -119,6 +121,50 @@ def match_timeline(
         panel_state(events, float(minute), match_id=match_id)
         for minute in range(step, duration + 1, step)
     ]
+
+
+@app.get("/matches/{match_id}/state/human")
+def match_state_human(
+    match_id: str,
+    minute: float = Query(..., ge=0, le=150),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The panel in plain language (product level 3) + the raw panel."""
+    m = _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    panel = panel_state(events, minute, match_id=match_id)
+    return {
+        "human": humanize_panel(panel, m.home_team or "HOME", m.away_team or "AWAY"),
+        "panel": panel,
+    }
+
+
+@app.get("/matches/{match_id}/story")
+def match_story_endpoint(match_id: str, db: Session = Depends(get_db)) -> list[dict]:
+    """The narrated Match Story (product level 4 / design-doc Section 17)."""
+    m = _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    duration = int(max((e.minute for e in events), default=90.0))
+    timeline = [
+        panel_state(events, float(t), match_id=match_id)
+        for t in range(1, duration + 1)
+    ]
+    goal_minutes = [{"minute": e.minute, "team": e.team} for e in events if e.type == "goal"]
+    return match_story(timeline, goal_minutes, m.home_team or "HOME", m.away_team or "AWAY")
+
+
+@app.get("/insights/presets")
+def insights_presets() -> dict:
+    return PRESETS
+
+
+@app.get("/insights/{query}")
+def insights(query: str, team: str | None = None, db: Session = Depends(get_db)) -> list[dict]:
+    """Historical query bank (product level 6): football, not just games."""
+    try:
+        return run_query(db, query, team=team)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/players/profiles")
