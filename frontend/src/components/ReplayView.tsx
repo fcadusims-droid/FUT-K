@@ -5,7 +5,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchMatchDetail, fetchStory, fetchTimeline } from '../api'
 import type { MatchDetail, PanelState, StoryBeat } from '../types'
+import { AskBox } from './AskBox'
 import { MiniCurves } from './MiniCurves'
+import { SimilarMatches } from './SimilarMatches'
 import { NetworkView } from './NetworkView'
 import { Panel } from './Panel'
 import { TimelineChart } from './TimelineChart'
@@ -13,9 +15,10 @@ import { TimelineChart } from './TimelineChart'
 interface Props {
   matchId: string
   onBack: () => void
+  onOpenMatch: (id: string) => void
 }
 
-export function ReplayView({ matchId, onBack }: Props) {
+export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
   const [detail, setDetail] = useState<MatchDetail | null>(null)
   const [timeline, setTimeline] = useState<PanelState[]>([])
   const [idx, setIdx] = useState(0)
@@ -158,6 +161,14 @@ export function ReplayView({ matchId, onBack }: Props) {
             {Math.round(panel.minute)}'
           </span>
         </div>
+      </div>
+
+      <div className="card">
+        <AskBox matchId={matchId} />
+      </div>
+
+      <div className="card">
+        <SimilarMatches matchId={matchId} onSelect={onOpenMatch} />
       </div>
 
       <div className="card">
