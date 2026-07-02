@@ -7,6 +7,8 @@ the same leakage-safe discipline as ``backtest()`` (T-20-04).
 
 from __future__ import annotations
 
+import math
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -144,7 +146,7 @@ def match_story_endpoint(match_id: str, db: Session = Depends(get_db)) -> list[d
     """The narrated Match Story (product level 4 / design-doc Section 17)."""
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
-    duration = int(max((e.minute for e in events), default=90.0))
+    duration = math.ceil(max((e.minute for e in events), default=90.0))
     timeline = [
         panel_state(events, float(t), match_id=match_id)
         for t in range(1, duration + 1)
