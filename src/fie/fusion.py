@@ -44,44 +44,73 @@ TEAM_ALIASES = {
     "bayern munchen": "bayern munich",
     "fc bayern munchen": "bayern munich",
     "leverkusen": "bayer leverkusen",
-    "bayer 04 leverkusen": "bayer leverkusen",
+    "bayer leverkusen": "bayer leverkusen",
     "dortmund": "borussia dortmund",
     "m'gladbach": "borussia monchengladbach",
     "borussia mgladbach": "borussia monchengladbach",
     "ein frankfurt": "eintracht frankfurt",
     "fc koln": "koln",
-    "1. fc koln": "koln",
     "fc heidenheim": "heidenheim",
-    "1. fc heidenheim": "heidenheim",
     "fc union berlin": "union berlin",
-    "1. fc union berlin": "union berlin",
     "tsg hoffenheim": "hoffenheim",
-    "tsg 1899 hoffenheim": "hoffenheim",
     "sv werder bremen": "werder bremen",
     "vfl bochum": "bochum",
-    "vfl bochum 1848": "bochum",
     "vfb stuttgart": "stuttgart",
     "vfl wolfsburg": "wolfsburg",
     "sc freiburg": "freiburg",
     "sport-club freiburg": "freiburg",
-    "fsv mainz 05": "mainz",
-    "mainz 05": "mainz",
-    "1. fsv mainz 05": "mainz",
+    "fsv mainz": "mainz",
     "rb leipzig": "leipzig",
     "rasenballsport leipzig": "leipzig",
     "fc augsburg": "augsburg",
-    "sv darmstadt 98": "darmstadt",
-    "darmstadt 98": "darmstadt",
+    "sv darmstadt": "darmstadt",
+    # Premier League / Serie A / Ligue 1 (football-data + openfootball styles)
+    "man united": "manchester united",
+    "manchester united fc": "manchester united",
+    "man city": "manchester city",
+    "manchester city fc": "manchester city",
+    "newcastle": "newcastle united",
+    "newcastle united fc": "newcastle united",
+    "wolves": "wolverhampton wanderers",
+    "spurs": "tottenham hotspur",
+    "tottenham": "tottenham hotspur",
+    "tottenham hotspur fc": "tottenham hotspur",
+    "nott'm forest": "nottingham forest",
+    "nottm forest": "nottingham forest",
+    "inter": "internazionale",
+    "inter milan": "internazionale",
+    "fc internazionale milano": "internazionale",
+    "ac milan": "milan",
+    "as roma": "roma",
+    "ssc napoli": "napoli",
+    "juventus fc": "juventus",
+    "paris sg": "paris saint germain",
+    "psg": "paris saint germain",
+    "paris saint germain fc": "paris saint germain",
+    "olympique marseille": "marseille",
+    "olympique de marseille": "marseille",
+    "olympique lyonnais": "lyon",
+    "as monaco": "monaco",
+    "fc barcelona": "barcelona",
+    "real madrid cf": "real madrid",
 }
 
 
 def normalize_entity(name: str) -> str:
-    """Canonical key for a team/player name: casefold, strip accents, alias."""
+    """Canonical key for a team/player name.
+
+    casefold -> strip accents -> drop punctuation -> drop pure-digit tokens
+    ("1.", "04", "1846" in "1. FC Heidenheim 1846") -> alias table. The digit
+    rule handles the German convention generically instead of one alias per
+    numbered club.
+    """
     if not name:
         return ""
     text = unicodedata.normalize("NFKD", name)
     text = "".join(c for c in text if not unicodedata.combining(c))
-    text = " ".join(text.lower().replace(".", " ").replace("-", " ").split())
+    tokens = text.lower().replace(".", " ").replace("-", " ").split()
+    tokens = [t for t in tokens if not t.isdigit()]
+    text = " ".join(tokens)
     return TEAM_ALIASES.get(text, text)
 
 
@@ -220,3 +249,68 @@ def agreement_report(resolved: list, fields: dict, priors: dict | None = None) -
         f: {**v, "rate": round(v["agreed"] / v["compared"], 3) if v["compared"] else None}
         for f, v in stats.items()
     }
+
+
+# --------------------------------------------------------------------------- #
+# Timeline alignment — sources do not share a clock
+# --------------------------------------------------------------------------- #
+def estimate_offset(anchors_a: list, anchors_b: list, window: float = 5.0) -> float:
+    """Estimate source B's clock offset relative to A from anchor events.
+
+    Anchors are sorted minute lists of the *same real events* as seen by each
+    source (goals are the natural anchor). Each B anchor is paired with the
+    nearest unpaired A anchor within ``window`` minutes; the offset is the
+    median of (b - a) over pairs. No pairs -> 0.0 (assume aligned).
+    """
+    a = sorted(anchors_a)
+    b = sorted(anchors_b)
+    diffs = []
+    used = set()
+    for tb in b:
+        best_i, best_d = None, None
+        for i, ta in enumerate(a):
+            if i in used:
+                continue
+            d = abs(tb - ta)
+            if best_d is None or d < best_d:
+                best_i, best_d = i, d
+        if best_i is not None and best_d <= window:
+            used.add(best_i)
+            diffs.append(tb - a[best_i])
+    if not diffs:
+        return 0.0
+    diffs.sort()
+    mid = len(diffs) // 2
+    return diffs[mid] if len(diffs) % 2 else (diffs[mid - 1] + diffs[mid]) / 2
+
+
+def align_timelines(events_by_source: dict, anchor_type: str = "goal",
+                    window: float = 5.0) -> dict:
+    """Merge per-source event streams onto one clock.
+
+    ``events_by_source``: {source: [ {"minute": float, "type": str, ...} ]}.
+    The first source (sorted name) is the reference clock; every other source
+    is shifted by its estimated anchor offset. Returns ``{"offsets": {source:
+    minutes}, "timeline": [...]}`` — the unified timeline sorted by aligned
+    minute, each entry tagged with its source and aligned minute. Deterministic.
+    """
+    if not events_by_source:
+        return {"offsets": {}, "timeline": []}
+    names = sorted(events_by_source)
+    ref = names[0]
+    ref_anchors = [e["minute"] for e in events_by_source[ref]
+                   if e.get("type") == anchor_type]
+    offsets = {ref: 0.0}
+    for name in names[1:]:
+        anchors = [e["minute"] for e in events_by_source[name]
+                   if e.get("type") == anchor_type]
+        offsets[name] = round(estimate_offset(ref_anchors, anchors, window), 3)
+
+    timeline = []
+    for name in names:
+        for e in events_by_source[name]:
+            aligned = e["minute"] - offsets[name]
+            timeline.append({**e, "source": name,
+                             "aligned_minute": round(aligned, 3)})
+    timeline.sort(key=lambda e: (e["aligned_minute"], e["source"], e.get("type", "")))
+    return {"offsets": offsets, "timeline": timeline}
