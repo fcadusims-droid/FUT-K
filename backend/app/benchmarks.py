@@ -8,6 +8,18 @@ here without re-running the pipeline.
 
 BENCHMARKS = [
     {
+        "dataset": "Euro 2024 (modern era)",
+        "matches": 51,
+        "target": "goal in next 10 min (in-play)",
+        "brier": None,
+        "log_loss": 0.5068,
+        "calibration_gap": None,
+        "note": "learning loop PROMOTED a modern refit (base_rate 0.010): "
+                "0.521 -> 0.5068 held-out; WC 2022 refit was rejected by the gate",
+        "source": "GET /model/versions",
+        "reproduce": "python backend/scripts/recalibrate.py --competition 55 --season 282",
+    },
+    {
         "dataset": "La Liga 2015/16",
         "matches": 380,
         "target": "goal in next 10 min (in-play)",
