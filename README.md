@@ -82,11 +82,13 @@ results (full methodology, tables, and reproduction commands in
 
 | Claim | Evidence |
 |---|---|
-| Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 207 tests green in CI |
+| Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 216 tests green in CI |
 | No information leakage | prediction at minute *t* proven byte-identical when future events are appended — enforced at engine **and** HTTP level |
-| Calibrated on real football | World Cup 2018, 64 matches, walk-forward: fitted engine Brier **0.1796** / log loss **0.5449**, beating the constant base-rate baseline (0.1803 / 0.5464) with the calibration gap closed 0.040 → 0.025 |
+| Calibrated on real football | walk-forward on WC 2018 (fitting closes a wrong prior: gap 0.040 → 0.025) **and** on all 380 La Liga 2015/16 matches (a right prior stays right: gap 0.009) |
+| **Externally anchored** | on real Bet365 odds, the ordering is exactly right: naive baseline (LL 1.050) < Elo (1.007) < **engine's Poisson (0.976)** < market (0.916) — sane machinery, no market-beating claims |
+| Multi-target | corners and cards now scored on real data (4,878 held-out snapshots each), not just goals |
 | Distinguishes competitions | CL finals score 2.70 goals/90 vs La Liga 2.28; each competition's fitted parameters win on its own data |
-| Honest negatives kept | per-regime calibration **hurts** held-out loss (rejected); a learned model **loses** to the fitted heuristic out of sample (rejected) |
+| Honest negatives kept | per-regime calibration rejected; learned model rejected; naive pressure-scaling of corners/cards rejected — all by held-out data |
 | Player layers face-valid | top scorers/creators recovered correctly (Kane, Neymar, Özil…); Barcelona's passing network recovers Busquets as pivot and Alba→Neymar as the strongest link |
 
 The two rejected experiments stay in the record on purpose: in this project a
@@ -100,13 +102,15 @@ Match*, the twelve intelligences, and the honest-risks list — is
 with its executable companion
 [`docs/design/validation_test_plan.md`](./docs/design/validation_test_plan.md).
 
-## Roadmap
+## Roadmap (product phase)
 
-- External baselines: Elo, market odds, public xG models (the most important
-  open benchmark — see [`validation/README.md`](./validation/README.md) §7)
-- More targets scored at scale (corners, cards, next scorer)
+Validation stage is closed — see [`validation/README.md`](./validation/README.md).
+Next: FUT-K as a product.
+
 - Live sources + the consensus layer (design doc Sections 4 and 16)
-- Passing-network view in the app
+- Richer in-play features (the open research question from validation §7)
+- Replicate full-league numbers on more Big-5 seasons
+- Passing-network view and player pages in the app
 
 ## License & credits
 
