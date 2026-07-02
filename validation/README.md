@@ -23,12 +23,14 @@ Using the standard four-level ladder for systems like this:
 | 3. Internal validation | algorithms provably do what the spec says | ✅ complete (§2 below) |
 | 4. External validation | performance measured on real competitions | ✅ **first pass complete** — leakage-safe calibration on 3 competitions, multi-target scoring, and an external benchmark against Elo and bookmaker odds (§5.6); remaining open work in §7 |
 
-Level 4's first pass covers: leakage-safe backtests on 462 real matches across
+Level 4's first pass covered: leakage-safe backtests on 462 real matches across
 three competitions, walk-forward fitting with honest held-out metrics, three
 scored targets (goals, corners, cards), constant-baseline comparisons at two
 scales, and an **external anchor** — the engine's Poisson machinery scored on
-the same matches as classic Elo and de-margined Bet365 odds. What remains
-(live-stream validation, more leagues, ROI-style market analysis) is in §7.
+the same matches as classic Elo and de-margined Bet365 odds. The modern-era
+extension (§5.8) brings the dataset to 611 matches and adds cross-provider
+fusion. What remains (live-stream validation, more leagues, ROI-style market
+analysis) is in §7.
 
 ---
 
@@ -38,7 +40,7 @@ Every mechanism in the engine is tested against synthetic data with a *known*
 generator, so pass/fail is objective. The full plan is
 [`docs/design/validation_test_plan.md`](../docs/design/validation_test_plan.md)
 — 89 numbered test IDs (`T-SS-NN`), all implemented, plus property-based tests
-(hypothesis) and multi-seed Monte-Carlo runs. **198 engine tests + 18 API tests
+(hypothesis) and multi-seed Monte-Carlo runs. **214 engine tests + 43 API tests
 green in CI** (Python 3.11 & 3.12).
 
 Reference numbers reproduced (see [`results/RESULTS.md`](./results/RESULTS.md),
@@ -62,17 +64,23 @@ at the HTTP level of the app's API.
 
 ## 3. Datasets
 
-All real data is free **StatsBomb Open Data**
+Primary event data is free **StatsBomb Open Data**
 ([github.com/statsbomb/open-data](https://github.com/statsbomb/open-data)),
 event-level (every pass/shot/foul with minute, player, and pitch coordinates),
-subject to StatsBomb's non-commercial terms. Not redistributed here.
+subject to StatsBomb's non-commercial terms. Not redistributed here. The
+cross-provider work also uses **football-data.co.uk** CSVs (official match
+stats + Bet365 odds, §5.6 and §5.8) and **openfootball** community results
+(§5.8) as independent sources.
 
 | Dataset | Matches | Period | Role |
 |---|---|---|---|
 | FIFA World Cup 2018 (complete) | 64 | Jun–Jul 2018 | primary calibration + fitting |
 | UEFA Champions League finals | 18 | 1971–2019 | finals-vs-league comparison |
 | La Liga 2015/16 (complete season) | 380 | Aug 2015–May 2016 | full-league environment, player layers |
-| **Total ingested** | **462** | — | 34,486 normalized events, 1,333 player profiles |
+| FIFA World Cup 2022 (complete) | 64 | Nov–Dec 2022 | modern era, learning loop (§5.8) |
+| UEFA Euro 2024 (complete) | 51 | Jun–Jul 2024 | modern era, promoted refit (§5.8) |
+| Bundesliga 2023/24 (Leverkusen) | 34 | Aug 2023–May 2024 | modern era, fusion anchor (§5.8) |
+| **Total ingested** | **611** | — | 44,532 normalized events, 2,409 player profiles |
 
 ---
 
@@ -244,7 +252,7 @@ full set).
 pip install -e ".[dev]"                      # engine + test deps
 
 # 1. internal validation (no network needed)
-pytest -q                                     # 189 tests, incl. slow MC
+pytest -q                                     # 214 tests, incl. slow MC
 python scripts/report.py                      # regenerates results/RESULTS.md
 
 # 2. real-data calibration + fitting (downloads WC 2018 on first run)
@@ -274,6 +282,9 @@ python scripts/fit_targets_statsbomb.py
 
 # 9. external benchmark vs Elo and Bet365 odds (downloads football-data.co.uk CSV)
 python scripts/benchmark_external.py
+
+# 10. cross-provider fusion — 3 sources, majority voting (§5.8)
+python scripts/fuse_sources.py
 ```
 
 Each script rewrites its report in `validation/results/` — the committed
@@ -301,5 +312,7 @@ sample~~ → §5.1 at 380 matches. Still genuinely open:
   other Big-5 seasons exist in StatsBomb open data and should replicate these
   numbers before they are treated as general.
 - **No live-stream validation** — all real-data work is historical replay. The
-  latency and consensus layers of the design doc (Sections 4, 16) are not yet
-  exercised against live feeds. This is the bridge to the product phase.
+  Section 16 consensus layer now exists and is validated on historical data
+  (the fusion layer, §5.8); what remains unexercised is the *live* side —
+  latency, out-of-order events, source dropouts (design doc Section 4). This
+  is the bridge to the product phase.

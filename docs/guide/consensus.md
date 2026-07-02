@@ -20,6 +20,9 @@ Two rules:
    confidence and surfaces the divergence. That gap between perception and
    reality is one of the most interesting things the engine can show you.
 
-Today's app replays historical matches from a single curated source, so the
-consensus layer runs with fixed weights; it becomes fully active when live
-multi-source feeds are connected.
+This is no longer just a design idea: FUT-K's **Data Fusion Layer** reconciles
+three real, independent providers (StatsBomb, football-data.co.uk,
+openfootball) over historical matches — deterministic majority voting with
+provenance and recorded dissent for every fused value. The replay app itself
+still reads from a single curated source; the consensus machinery becomes
+fully live when real-time multi-source feeds are connected.

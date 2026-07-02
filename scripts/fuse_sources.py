@@ -1,9 +1,10 @@
-"""Data Fusion Layer on real data: StatsBomb x football-data.co.uk.
+"""Data Fusion Layer on real data: StatsBomb x football-data.co.uk x openfootball.
 
-Two independent providers describe the same fixtures (Bundesliga 2023/24 —
+Three independent providers describe the same fixtures (Bundesliga 2023/24 —
 StatsBomb open data covers Bayer Leverkusen's 34 matches; football-data.co.uk
-covers the whole league with scores, corners and cards). This script runs the
-deterministic fusion pipeline end to end:
+covers the whole league with scores, corners and cards; openfootball adds
+community-maintained FT/HT results). This script runs the deterministic
+fusion pipeline end to end:
 
     entity resolution -> match resolution -> field comparison ->
     weighted fusion -> unified records + measured agreement rates

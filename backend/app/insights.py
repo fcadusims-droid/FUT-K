@@ -1,7 +1,7 @@
 """Historical query bank (product level 6): analyze football, not just games.
 
 Preset cross-match queries computed from the persisted events. Each returns
-matches with the stat that qualified them, newest-first. 462 matches scan in
+matches with the stat that qualified them, newest-first. ~600 matches scan in
 well under a second; precompute later if the bank grows.
 """
 
