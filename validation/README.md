@@ -205,6 +205,24 @@ naive pressure-scaling makes both targets *worse*; the constant train-fit rate
 is the better-calibrated predictor. In-play state, as currently featurized,
 carries little marginal signal for these targets.
 
+### 5.8 Modern era (2020+) and the fusion layer
+
+The dataset now includes **149 matches from 2020+** — World Cup 2022 (64,
+2.66 goals/match), Euro 2024 (51, 2.29) and Bundesliga 2023/24 Leverkusen
+(34, 3.32). Two live results:
+
+- **The learning loop on modern data**: recalibrating on Euro 2024 was
+  **promoted** (held-out log loss 0.521 → 0.5068 with base_rate 0.010 — the
+  tournament really was low-scoring); recalibrating on WC 2022 was **rejected**
+  by the gate (would have degraded 0.6036 → 0.6126). The promotion gate works
+  in both directions on real modern data.
+- **Cross-provider fusion**
+  ([`results/RESULTS_FUSION.md`](./results/RESULTS_FUSION.md)): StatsBomb
+  events × football-data.co.uk official stats over the same 34 Bundesliga
+  2023/24 fixtures — 34/34 resolved by entity+match resolution; goals, corners
+  and reds agree 100%; yellows 97.1% with the 2 real conflicts detected and
+  recorded with provenance. Deterministic by construction.
+
 ---
 
 ## 6. Reproducibility
