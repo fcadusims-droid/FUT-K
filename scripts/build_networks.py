@@ -29,7 +29,7 @@ def main():
     ap.add_argument("--team", default="Barcelona")
     ap.add_argument("--cache", default=DEFAULT_CACHE)
     ap.add_argument("--db", default="fie_real.sqlite")
-    ap.add_argument("--out", default="RESULTS_NETWORK.md")
+    ap.add_argument("--out", default="validation/results/RESULTS_NETWORK.md")
     args = ap.parse_args()
 
     source = StatsBombSource(args.competition, args.season, cache_dir=args.cache)

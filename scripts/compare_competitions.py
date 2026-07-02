@@ -80,7 +80,7 @@ def _avg_duration(matches):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--cache", default=DEFAULT_CACHE)
-    ap.add_argument("--out", default="RESULTS_COMPARE.md")
+    ap.add_argument("--out", default="validation/results/RESULTS_COMPARE.md")
     args = ap.parse_args()
 
     params0 = Params()

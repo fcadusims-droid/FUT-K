@@ -37,7 +37,7 @@ def main():
     ap.add_argument("--min-actions", type=int, default=60)
     ap.add_argument("--cache", default=DEFAULT_CACHE)
     ap.add_argument("--db", default="fie_real.sqlite")
-    ap.add_argument("--out", default="RESULTS_PROFILES.md")
+    ap.add_argument("--out", default="validation/results/RESULTS_PROFILES.md")
     args = ap.parse_args()
 
     source = StatsBombSource(args.competition, args.season, cache_dir=args.cache)

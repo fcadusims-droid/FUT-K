@@ -64,7 +64,7 @@ def main():
     ap.add_argument("--folds", type=int, default=4)
     ap.add_argument("--window", type=int, default=10)
     ap.add_argument("--cache", default=DEFAULT_CACHE)
-    ap.add_argument("--out", default="RESULTS_REGIME.md")
+    ap.add_argument("--out", default="validation/results/RESULTS_REGIME.md")
     args = ap.parse_args()
 
     params0 = Params()
