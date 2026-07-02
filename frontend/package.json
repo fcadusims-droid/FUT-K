@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "futk-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -21,5 +21,7 @@
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
-  }
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": "João Vitor Perazzolo (Johnny Kestler)"
 }

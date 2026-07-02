@@ -1,0 +1,14 @@
+FUT-K — Football Intelligence Engine
+Copyright (c) 2026 João Vitor Perazzolo (Johnny Kestler)
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See the LICENSE file for the full text.
+
+Commercial licensing outside the terms of the AGPL-3.0 is available from the
+copyright holder — see LICENSING.md.
+
+Match data used for validation comes from the StatsBomb Open Data repository
+(https://github.com/statsbomb/open-data) and is subject to StatsBomb's own
+non-commercial user agreement. This project does not redistribute that data.

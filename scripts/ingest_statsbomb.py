@@ -51,7 +51,7 @@ def main():
     ap.add_argument("--db", default="fie_real.sqlite")
     ap.add_argument("--cache", default=DEFAULT_CACHE)
     ap.add_argument("--window", type=int, default=10)
-    ap.add_argument("--out", default="RESULTS_REAL.md")
+    ap.add_argument("--out", default="validation/results/RESULTS_REAL.md")
     args = ap.parse_args()
 
     params = Params()
