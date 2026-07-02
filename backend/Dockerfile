@@ -3,7 +3,7 @@ FROM python:3.12-slim
 
 WORKDIR /srv/futk
 # Engine first (the backend depends on it as a local package).
-COPY pyproject.toml conftest.py ./
+COPY pyproject.toml conftest.py README.md ./
 COPY src ./src
 COPY backend/pyproject.toml backend/
 COPY backend/app backend/app
