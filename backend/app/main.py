@@ -14,7 +14,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .db import get_db
+from .ask import answer as ask_answer
+from .benchmarks import BENCHMARKS
+from .evolution import team_evolution
 from .insights import PRESETS, run_query
+from .similarity import match_vector, similar_matches
 from .network import DEFAULT_CACHE, network_payload
 from .models import Match, MatchEvent, PlayerProfile
 from .panel import _row_to_event, panel_state
@@ -175,6 +179,109 @@ def match_network(
     payload = network_payload(raw, team_name or side)
     payload["side"] = side
     return payload
+
+
+@app.get("/matches/{match_id}/similar")
+def similar(match_id: str, limit: int = Query(5, ge=1, le=20),
+            db: Session = Depends(get_db)) -> list[dict]:
+    """Semantic search (level 7): matches whose dynamics felt like this one."""
+    _get_match(db, match_id)
+    all_matches = db.execute(select(Match)).scalars().all()
+    vectors = {}
+    for m in all_matches:
+        evs = _load_events(db, m.id)
+        if evs:
+            vectors[m.id] = match_vector(evs)
+    if match_id not in vectors:
+        raise HTTPException(status_code=404, detail="no events for this match")
+    target = vectors.pop(match_id)
+    by_id = {m.id: m for m in all_matches}
+    return [
+        {
+            "id": mid, "similarity": round(sim, 3),
+            "home_team": by_id[mid].home_team, "away_team": by_id[mid].away_team,
+            "match_date": by_id[mid].match_date,
+            "final": f"{by_id[mid].home_goals_final}-{by_id[mid].away_goals_final}",
+        }
+        for mid, sim in similar_matches(target, vectors, limit)
+    ]
+
+
+def _ask_context(db: Session, match_id: str) -> dict:
+    m = _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    duration = math.ceil(max((e.minute for e in events), default=90.0))
+    timeline = [panel_state(events, float(t), match_id=match_id)
+                for t in range(1, duration + 1)]
+    goal_minutes = [{"minute": e.minute, "team": e.team}
+                    for e in events if e.type == "goal"]
+    story = match_story(timeline, goal_minutes, m.home_team or "HOME",
+                        m.away_team or "AWAY")
+    return {
+        "home": m.home_team or "HOME", "away": m.away_team or "AWAY",
+        "story": story, "events": events,
+        "final": (m.home_goals_final or 0, m.away_goals_final or 0),
+        "timeline_last": timeline[-1],
+    }
+
+
+@app.get("/matches/{match_id}/ask")
+def ask(match_id: str, q: str = Query(..., min_length=2),
+        db: Session = Depends(get_db)) -> dict:
+    """Conversational layer (level 8): deterministic Q&A over the engine."""
+    return ask_answer(q, _ask_context(db, match_id))
+
+
+@app.get("/teams/{team}/evolution")
+def evolution(team: str, competition: str | None = None,
+              db: Session = Depends(get_db)) -> dict:
+    """Team memory (level 9): month-by-month evolution across the season."""
+    return team_evolution(db, team, competition)
+
+
+@app.get("/matches/{match_id}/explain")
+def explain_endpoint(match_id: str, minute: float = Query(..., ge=0, le=150),
+                     db: Session = Depends(get_db)) -> dict:
+    """Structured explainability cascade (level 10): claim -> because ->
+    evidence -> reliability."""
+    _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    panel = panel_state(events, minute, match_id=match_id)
+    because = panel["explanation"]["because"]
+    return {
+        "claim": panel["explanation"]["claim"],
+        "probability": panel["predictions"]["goal_next_10min"],
+        "because": because,
+        "evidence": {
+            # The engine inputs feeding this claim (documented, honest count):
+            # momentum, pressure x2, regime, score, minute, cards, recent shots.
+            "metrics_used": 8,
+            "mechanisms_found": len(because),
+        },
+        "reliability": panel["confidence"],
+    }
+
+
+@app.get("/benchmarks")
+def benchmarks() -> list[dict]:
+    """Public benchmark (level 11): validated numbers + how to reproduce them."""
+    return BENCHMARKS
+
+
+@app.get("/search")
+def search(q: str = Query(..., min_length=2), db: Session = Depends(get_db)) -> list[dict]:
+    """Product API (level 12): free-text match search by team name."""
+    needle = q.lower()
+    rows = db.execute(select(Match)).scalars().all()
+    out = [
+        {"id": m.id, "match_date": m.match_date, "home_team": m.home_team,
+         "away_team": m.away_team,
+         "final": f"{m.home_goals_final}-{m.away_goals_final}"}
+        for m in rows
+        if needle in (m.home_team or "").lower() or needle in (m.away_team or "").lower()
+    ]
+    out.sort(key=lambda r: r["match_date"] or "", reverse=True)
+    return out[:25]
 
 
 @app.get("/insights/presets")

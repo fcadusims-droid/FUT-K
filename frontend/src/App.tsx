@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { Benchmarks } from './components/Benchmarks'
 import { Explore } from './components/Explore'
 import { MatchList } from './components/MatchList'
 import { ReplayView } from './components/ReplayView'
 
-type Tab = 'matches' | 'explore'
+type Tab = 'matches' | 'explore' | 'benchmarks'
 
 export default function App() {
   const [matchId, setMatchId] = useState<string | null>(null)
@@ -17,7 +18,7 @@ export default function App() {
         a professional analyst.
       </p>
       {matchId ? (
-        <ReplayView matchId={matchId} onBack={() => setMatchId(null)} />
+        <ReplayView matchId={matchId} onBack={() => setMatchId(null)} onOpenMatch={setMatchId} />
       ) : (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -27,8 +28,11 @@ export default function App() {
             <button className={tab === 'explore' ? 'primary' : ''} onClick={() => setTab('explore')}>
               Explore
             </button>
+            <button className={tab === 'benchmarks' ? 'primary' : ''} onClick={() => setTab('benchmarks')}>
+              Benchmarks
+            </button>
           </div>
-          {tab === 'matches' ? <MatchList onSelect={setMatchId} /> : <Explore onSelect={setMatchId} />}
+          {tab === 'matches' ? <MatchList onSelect={setMatchId} /> : tab === 'explore' ? <Explore onSelect={setMatchId} /> : <Benchmarks />}
         </>
       )}
     </>

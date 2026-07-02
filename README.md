@@ -60,6 +60,13 @@ comebacks, blown leads, late drama — across every ingested match:
   Confidence Curve; play/pause, minute stepping, click-to-seek, table view.
 - **Explore** — preset historical queries (comebacks from 2 down, blown leads,
   goal fests, late drama, card storms) with a team filter.
+- **Ask the engine** — "what happened after minute 60?", "why did they lose?",
+  "did the referee change the game?" — deterministic answers built from the
+  engine's own reading (no external language model).
+- **Similar matches** — semantic search by game dynamics: momentum flow, goal
+  timing, swings. "Matches that felt like this one."
+- **Benchmarks tab** — the validated public numbers, each with the one command
+  that reproduces it.
 - **Player DNA** — per-player profiles built from real event data (pass
   accuracy, progression, key passes, archetypes like *finisher* / *creator*),
   served by the API.
@@ -120,7 +127,12 @@ Next: FUT-K as a product.
 - Live sources + the consensus layer (design doc Sections 4 and 16)
 - Richer in-play features (the open research question from validation §7)
 - Replicate full-league numbers on more Big-5 seasons
-- Passing-network view and player pages in the app
+- Player pages in the app
+
+Also in the repo: **SDKs** (Python + JavaScript, [`sdk/`](./sdk/)), the
+**user guide** ([`docs/guide/`](./docs/guide/)) explaining Confidence, Regimes,
+Consensus and the panel, and the **product definition**
+([`docs/product/PRODUCT.md`](./docs/product/PRODUCT.md)).
 
 ## License & credits
 
