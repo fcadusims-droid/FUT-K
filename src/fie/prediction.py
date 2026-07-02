@@ -66,12 +66,23 @@ def mult_pressure(events, team: str, minute: float, params: Params) -> float:
     return 0.5 + share
 
 
+def coach_adjustment(state, team: str, profile: dict) -> float:
+    """Coach-specific score effect (Section 13). A coarse, 3-valued function.
+
+    Lives in the core (it is a lambda multiplier); ``fie.coaches`` re-exports it
+    so the Knowledge layer's public surface is unchanged.
+    """
+    diff = state.goal_diff(team)
+    if diff > 0 and profile.get("winning") == "retreat":
+        return 0.85
+    if diff < 0 and profile.get("losing") == "press":
+        return 1.20
+    return 1.0
+
+
 def mult_score(state, team: str, profile=None) -> float:
     """Score effect. Coach-specific when a profile is given (Section 13)."""
     if profile is not None:
-        # Imported lazily to keep this module importable on its own.
-        from .coaches import coach_adjustment
-
         return coach_adjustment(state, team, profile)
     diff = state.goal_diff(team)
     if diff > 0:

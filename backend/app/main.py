@@ -22,6 +22,17 @@ from .learningloop import get_active_params
 from .models import ModelVersion
 from .similarity import match_vector, similar_matches
 from .network import DEFAULT_CACHE, network_payload
+import os as _os
+
+from fie.plugins import load_plugins as _load_plugins, run_all as _run_plugins
+
+# Plugin discovery (docs/ARCHITECTURE.md): repo-root plugins/ or FUTK_PLUGINS_DIR.
+PLUGINS_DIR = _os.environ.get(
+    "FUTK_PLUGINS_DIR",
+    _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(
+        _os.path.abspath(__file__)))), "plugins"),
+)
+_load_plugins(PLUGINS_DIR)
 from .models import Match, MatchEvent, PlayerProfile
 from .observability import MetricsMiddleware, metrics
 from .security import SecurityMiddleware
@@ -117,6 +128,7 @@ def match_detail(match_id: str, db: Session = Depends(get_db)) -> dict:
         "home_goals_final": m.home_goals_final,
         "away_goals_final": m.away_goals_final,
         "n_events": len(events),
+        "events_hash": m.events_hash,
         "duration": duration,
         "goal_minutes": [
             {"minute": e.minute, "team": e.team} for e in events if e.type == "goal"
@@ -201,6 +213,14 @@ def match_network(
     payload = network_payload(raw, team_name or side)
     payload["side"] = side
     return payload
+
+
+@app.get("/matches/{match_id}/plugins")
+def match_plugins(match_id: str, db: Session = Depends(get_db)) -> dict:
+    """Every registered plugin metric for this match (docs/ARCHITECTURE.md)."""
+    _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    return _run_plugins(events, get_active_params(db))
 
 
 @app.get("/matches/{match_id}/similar")
