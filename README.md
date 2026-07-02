@@ -7,7 +7,7 @@ an honest confidence), and *why*.
 
 > *Don't predict scores — understand football.*
 
-![Match replay — the intelligent panel](docs/images/app-replay-panel.png)
+![Match replay — plain-language panel and the narrated Match Story](docs/images/app-replay-panel.png)
 
 Every number on that panel is recomputed live from the match's event stream
 **using only information available up to that minute** — the engine is provably
@@ -39,17 +39,27 @@ Open the app, pick a match, press **Play**.
 
 ![Match catalog](docs/images/app-match-catalog.png)
 
+**Explore** turns the engine into a query system over football history — real
+comebacks, blown leads, late drama — across every ingested match:
+
+![Explore — historical queries](docs/images/app-explore.png)
+
 ## What you get
 
 - **Match catalog** — 462 real matches ready to ingest: the complete 2018
   World Cup, every Champions League final 1971–2019, and the full La Liga
   2015/16 season (StatsBomb open data).
-- **The intelligent panel** — score, match regime (NORMAL / PRESSURE /
-  POST_GOAL / …), momentum, offensive pressure, Poisson-based predictions
-  ("goal in the next 10 minutes: 32%") each carrying a **confidence** that is
-  itself calibrated, a change score, and the explained *why*.
-- **Replay controls** — play/pause, minute stepping, a momentum timeline with
-  goal markers, click-to-seek, and a table view of the whole match.
+- **A plain-language panel** — "Belgium has the upper hand right now. A goal
+  in the next 10 minutes is plausible (27%)." No jargon by default; the full
+  technical panel (regimes, confidence, momentum, prediction meters) lives
+  behind an **Analyst mode** toggle.
+- **Match Story** — the narrated timeline: kick-off, goals in context, "the
+  game changed" beats, momentum swings, full time. Click a beat to jump the
+  replay there.
+- **Signature visuals** — Momentum Timeline with goal markers, Pressure Index,
+  Confidence Curve; play/pause, minute stepping, click-to-seek, table view.
+- **Explore** — preset historical queries (comebacks from 2 down, blown leads,
+  goal fests, late drama, card storms) with a team filter.
 - **Player DNA** — per-player profiles built from real event data (pass
   accuracy, progression, key passes, archetypes like *finisher* / *creator*),
   served by the API.
