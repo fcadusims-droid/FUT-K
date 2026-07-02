@@ -77,3 +77,39 @@ def test_fuse_match_and_agreement_report():
     assert report["home_goals"]["rate"] == 1.0
     assert report["corners"]["rate"] == 0.0
     assert report["corners"]["compared"] == 1
+
+
+def test_normalization_strips_digit_tokens_and_new_leagues():
+    from fie.fusion import normalize_entity as n
+    assert n("1. FC Heidenheim 1846") == "heidenheim"
+    assert n("1. FC Union Berlin") == "union berlin"
+    assert n("FSV Mainz 05") == "mainz"
+    assert n("FC Bayern München") == "bayern munich"
+    assert n("Nott'm Forest") == "nottingham forest"
+    assert n("Paris SG") == n("PSG") == "paris saint germain"
+    assert n("Inter Milan") == n("FC Internazionale Milano") == "internazionale"
+
+
+def test_estimate_offset_recovers_clock_shift():
+    from fie.fusion import estimate_offset
+    a = [12.0, 47.5, 80.0]
+    b = [t + 1.4 for t in a]              # source B's clock runs 1.4 min late
+    assert abs(estimate_offset(a, b) - 1.4) < 1e-9
+    # Unequal anchor counts: extra unmatched anchor is ignored.
+    assert abs(estimate_offset(a, b + [200.0]) - 1.4) < 1e-9
+    assert estimate_offset([], [10.0]) == 0.0  # no pairs -> assume aligned
+
+
+def test_align_timelines_unifies_clocks():
+    from fie.fusion import align_timelines
+    a = [{"minute": 12.0, "type": "goal"}, {"minute": 30.0, "type": "shot"}]
+    b = [{"minute": 13.5, "type": "goal"}, {"minute": 20.5, "type": "corner"}]
+    out = align_timelines({"alpha": a, "beta": b})
+    assert out["offsets"] == {"alpha": 0.0, "beta": 1.5}
+    minutes = [e["aligned_minute"] for e in out["timeline"]]
+    assert minutes == sorted(minutes)
+    goals = [e for e in out["timeline"] if e["type"] == "goal"]
+    # After alignment the two views of the same goal land on the same minute.
+    assert abs(goals[0]["aligned_minute"] - goals[1]["aligned_minute"]) < 1e-9
+    # Deterministic:
+    assert align_timelines({"alpha": a, "beta": b}) == out

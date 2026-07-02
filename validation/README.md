@@ -217,11 +217,19 @@ The dataset now includes **149 matches from 2020+** — World Cup 2022 (64,
   by the gate (would have degraded 0.6036 → 0.6126). The promotion gate works
   in both directions on real modern data.
 - **Cross-provider fusion**
-  ([`results/RESULTS_FUSION.md`](./results/RESULTS_FUSION.md)): StatsBomb
-  events × football-data.co.uk official stats over the same 34 Bundesliga
-  2023/24 fixtures — 34/34 resolved by entity+match resolution; goals, corners
-  and reds agree 100%; yellows 97.1% with the 2 real conflicts detected and
-  recorded with provenance. Deterministic by construction.
+  ([`results/RESULTS_FUSION.md`](./results/RESULTS_FUSION.md)): three
+  independent providers — StatsBomb events × football-data.co.uk official
+  stats × openfootball community results — over Bundesliga 2023/24. 306
+  fixtures resolved across 2+ sources, and all 34 StatsBomb fixtures across
+  all 3 (real majority voting). Goals, corners, reds and half-time scores
+  agree 100%; yellows 97.1% with the 2 real conflicts recorded with
+  provenance. The half-time score doubles as a **temporal anchor**: StatsBomb's
+  value is reconstructed from period-1 events, so agreement validates the event
+  clock against two independent scoreboards — and the majority vote initially
+  *caught a blind spot in our own pipeline* (StatsBomb records own goals as
+  separate `Own Goal For` events, not `Shot → Goal`; two dissents pointed
+  straight at it, and after the fix agreement is 294/294). Deterministic by
+  construction.
 
 ---
 
