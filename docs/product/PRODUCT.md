@@ -48,7 +48,7 @@ Change decisions. See what would have happened."* Four modes, one engine:
 
 | Mode | What it is | Status |
 |---|---|---|
-| **Replay** | the living 2D pitch: ball gliding between real touchpoints, event pings, goal flashes, speeds 0.25×–32×, TV/standard/analysis views, the engine narrating as the clock runs | ✅ shipped (Replay Engine v1) |
+| **Replay** | the living 2D pitch (Digital Match Twin): the ball follows every recorded pass/carry/shot and each player glides between their own recorded touches, over the full 90'+ (extra time included), at 0.25×–32×, in TV/standard/analysis views, the engine narrating as the clock runs | ✅ shipped |
 | **Analysis** | layers on top of the replay: activity zones from real event locations, pressure glow, momentum arrow, pause-and-ask ("why?" → the explainability cascade) | ✅ shipped (analysis mode + `why?`) |
 | **What If?** | counterfactuals: remove a goal or card and re-run the engine's pure functions from that minute — baseline vs counterfactual, honestly labeled a *re-reading, not a prophecy* | ✅ shipped (`/matches/{id}/whatif` + the What If? card) |
 | **Future Sim** | 10,000 seeded forward simulations from the current minute, bounded by the match's real remaining time; outcome distribution + opportunity windows | ✅ shipped (`/matches/{id}/simulate` + the Future Simulation card) |
@@ -66,4 +66,4 @@ information, not the render.
 - Match Story (narrated beats from the replay timeline)
 - Regime band + Pressure Index + Confidence Curve charts
 - Explore page: preset historical queries over all ingested matches
-- **Replay Engine v1**: the 2D pitch replay above, on every ingested match
+- **Digital Match Twin**: the dense 2D pitch replay above, on every ingested match

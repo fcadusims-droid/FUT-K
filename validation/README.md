@@ -40,7 +40,7 @@ Every mechanism in the engine is tested against synthetic data with a *known*
 generator, so pass/fail is objective. The full plan is
 [`docs/design/validation_test_plan.md`](../docs/design/validation_test_plan.md)
 — 89 numbered test IDs (`T-SS-NN`), all implemented, plus property-based tests
-(hypothesis) and multi-seed Monte-Carlo runs. **214 engine tests + 43 API tests
+(hypothesis) and multi-seed Monte-Carlo runs. **221 engine tests + 57 API tests
 green in CI** (Python 3.11 & 3.12).
 
 Reference numbers reproduced (see [`results/RESULTS.md`](./results/RESULTS.md),
@@ -282,7 +282,7 @@ full set).
 pip install -e ".[dev]"                      # engine + test deps
 
 # 1. internal validation (no network needed)
-pytest -q                                     # 214 tests, incl. slow MC
+pytest -q                                     # 221 tests, incl. slow MC
 python scripts/report.py                      # regenerates results/RESULTS.md
 
 # 2. real-data calibration + fitting (downloads WC 2018 on first run)

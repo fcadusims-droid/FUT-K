@@ -15,8 +15,8 @@ test that fails the build if anyone breaks it.
 │               (reads the model → produces understanding)    │
 ├────────────────────────────────────────────────────────────┤
 │ INFERENCE     fie.learning · fie.learned · fie.ratings      │
-│               fie.fusion · fie.plugins                      │
-│               (fitting, learning, fusion, extensions)       │
+│               fie.fusion · fie.simulation · fie.plugins     │
+│               (fitting, learning, fusion, simulation)       │
 ├────────────────────────────────────────────────────────────┤
 │ CORE          fie.events · fie.indices · fie.prediction     │
 │               fie.regime · fie.confidence · fie.change      │
@@ -30,7 +30,8 @@ test that fails the build if anyone breaks it.
   It is the validated mathematics (89 spec'd test IDs live here). It changes
   rarely and deliberately.
 - **Inference** may import Core. Fitting, the learned model, external-baseline
-  ratings, the multi-source fusion layer, and the plugin registry.
+  ratings, the multi-source fusion layer, the future-simulation engine, and
+  the plugin registry.
 - **Knowledge** may import Core and Inference. The interpretive layer — it
   turns model state into understanding (players, coaches, tactics, narrative,
   explanations).
