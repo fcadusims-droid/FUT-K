@@ -113,3 +113,41 @@ def test_align_timelines_unifies_clocks():
     assert abs(goals[0]["aligned_minute"] - goals[1]["aligned_minute"]) < 1e-9
     # Deterministic:
     assert align_timelines({"alpha": a, "beta": b}) == out
+
+
+def test_normalization_structural_tokens_premier_league():
+    # football-data short names vs openfootball "<Club> FC" long names.
+    from fie.fusion import normalize_entity as n
+    assert n("Arsenal FC") == n("Arsenal") == "arsenal"
+    assert n("AFC Bournemouth") == n("Bournemouth") == "bournemouth"
+    assert n("Brighton & Hove Albion FC") == n("Brighton") == "brighton"
+    assert n("Luton Town FC") == n("Luton") == "luton town"
+    assert n("West Ham United FC") == n("West Ham") == "west ham united"
+    assert n("Wolverhampton Wanderers FC") == n("Wolves")
+    assert n("Real Madrid CF") == n("Real Madrid") == "real madrid"
+    assert n("Sheffield United FC") == n("Sheffield United") == "sheffield united"
+
+
+def test_priors_from_agreement_scores_sources_against_majority():
+    from fie.fusion import priors_from_agreement
+
+    # Source c dissents once out of two compared fields; a and b always agree.
+    sources = {
+        "a": [{"date": "2024-01-01", "home": "X", "away": "Y",
+               "goals": 2, "corners": 5}],
+        "b": [{"date": "2024-01-01", "home": "X", "away": "Y",
+               "goals": 2, "corners": 5}],
+        "c": [{"date": "2024-01-01", "home": "X", "away": "Y",
+               "goals": 2, "corners": 7}],
+    }
+    resolved = resolve_matches(sources)
+    fields = {"goals": 0, "corners": 0}
+    measured = priors_from_agreement(resolved, fields, priors={})
+    assert measured == {"a": 1.0, "b": 1.0, "c": 0.5}
+
+    # Deterministic and pure: same inputs, same output.
+    assert priors_from_agreement(resolved, fields, priors={}) == measured
+
+    # A source never compared against anyone yields no score.
+    lonely = resolve_matches({"solo": sources["a"]})
+    assert priors_from_agreement(lonely, fields, priors={}) == {}

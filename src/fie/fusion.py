@@ -40,76 +40,71 @@ TEAM_ALIASES = {
     "rc deportivo la coruna": "deportivo la coruna",
     "vallecano": "rayo vallecano",
     "sp gijon": "sporting gijon",
-    "bayern munich": "bayern munich",
     "bayern munchen": "bayern munich",
-    "fc bayern munchen": "bayern munich",
     "leverkusen": "bayer leverkusen",
-    "bayer leverkusen": "bayer leverkusen",
     "dortmund": "borussia dortmund",
     "m'gladbach": "borussia monchengladbach",
     "borussia mgladbach": "borussia monchengladbach",
     "ein frankfurt": "eintracht frankfurt",
-    "fc koln": "koln",
-    "fc heidenheim": "heidenheim",
-    "fc union berlin": "union berlin",
     "tsg hoffenheim": "hoffenheim",
     "sv werder bremen": "werder bremen",
     "vfl bochum": "bochum",
     "vfb stuttgart": "stuttgart",
     "vfl wolfsburg": "wolfsburg",
     "sc freiburg": "freiburg",
-    "sport-club freiburg": "freiburg",
+    "sport club freiburg": "freiburg",
     "fsv mainz": "mainz",
     "rb leipzig": "leipzig",
     "rasenballsport leipzig": "leipzig",
-    "fc augsburg": "augsburg",
     "sv darmstadt": "darmstadt",
-    # Premier League / Serie A / Ligue 1 (football-data + openfootball styles)
+    # Premier League (football-data short names vs openfootball full names)
     "man united": "manchester united",
-    "manchester united fc": "manchester united",
     "man city": "manchester city",
-    "manchester city fc": "manchester city",
     "newcastle": "newcastle united",
-    "newcastle united fc": "newcastle united",
     "wolves": "wolverhampton wanderers",
     "spurs": "tottenham hotspur",
     "tottenham": "tottenham hotspur",
-    "tottenham hotspur fc": "tottenham hotspur",
     "nott'm forest": "nottingham forest",
     "nottm forest": "nottingham forest",
+    "brighton hove albion": "brighton",
+    "luton": "luton town",
+    "west ham": "west ham united",
+    "sheffield utd": "sheffield united",
+    # Serie A / Ligue 1
     "inter": "internazionale",
     "inter milan": "internazionale",
-    "fc internazionale milano": "internazionale",
+    "internazionale milano": "internazionale",
     "ac milan": "milan",
     "as roma": "roma",
     "ssc napoli": "napoli",
-    "juventus fc": "juventus",
     "paris sg": "paris saint germain",
     "psg": "paris saint germain",
-    "paris saint germain fc": "paris saint germain",
     "olympique marseille": "marseille",
     "olympique de marseille": "marseille",
     "olympique lyonnais": "lyon",
     "as monaco": "monaco",
-    "fc barcelona": "barcelona",
-    "real madrid cf": "real madrid",
 }
+
+# Structural tokens that carry no identity: club-type prefixes/suffixes that
+# providers include or omit freely ("Arsenal FC" vs "Arsenal", "AFC
+# Bournemouth" vs "Bournemouth", "Real Madrid CF") and the ampersand.
+_NOISE_TOKENS = {"fc", "afc", "cf", "&"}
 
 
 def normalize_entity(name: str) -> str:
     """Canonical key for a team/player name.
 
     casefold -> strip accents -> drop punctuation -> drop pure-digit tokens
-    ("1.", "04", "1846" in "1. FC Heidenheim 1846") -> alias table. The digit
-    rule handles the German convention generically instead of one alias per
-    numbered club.
+    ("1.", "04", "1846" in "1. FC Heidenheim 1846") -> drop structural tokens
+    ("FC", "AFC", "CF", "&") -> alias table. The token rules handle naming
+    conventions generically instead of one alias per club per provider.
     """
     if not name:
         return ""
     text = unicodedata.normalize("NFKD", name)
     text = "".join(c for c in text if not unicodedata.combining(c))
     tokens = text.lower().replace(".", " ").replace("-", " ").split()
-    tokens = [t for t in tokens if not t.isdigit()]
+    tokens = [t for t in tokens if not t.isdigit() and t not in _NOISE_TOKENS]
     text = " ".join(tokens)
     return TEAM_ALIASES.get(text, text)
 
@@ -248,6 +243,44 @@ def agreement_report(resolved: list, fields: dict, priors: dict | None = None) -
     return {
         f: {**v, "rate": round(v["agreed"] / v["compared"], 3) if v["compared"] else None}
         for f, v in stats.items()
+    }
+
+
+def priors_from_agreement(resolved: list, fields: dict,
+                          priors: dict | None = None) -> dict:
+    """Measured per-source reliability: the priors feedback loop, closed.
+
+    For every field where 2+ sources contributed, a source scores a hit when
+    its value sided with the fused majority and a miss when it dissented. The
+    returned ``{source: rate}`` (3 decimals, sources sorted) is the empirical
+    reliability that can replace the configured priors on the next run.
+
+    One deterministic iteration, honestly circular: the majority used for
+    scoring is itself computed with the *configured* priors, so this measures
+    each source against the current consensus — same inputs, same output,
+    today and in six months. Sources never seen in a 2+ comparison are absent
+    from the result (no evidence, no score).
+    """
+    counts: dict = {}
+    for fixture in resolved:
+        if len(fixture["records"]) < 2:
+            continue
+        fused = fuse_match(fixture["records"], fields, priors)
+        for field in fields:
+            cell = fused[field]
+            if len(cell["sources"]) + len(cell["dissent"]) < 2:
+                continue
+            for source in cell["sources"]:
+                hit_miss = counts.setdefault(source, [0, 0])
+                hit_miss[0] += 1
+                hit_miss[1] += 1
+            for source in cell["dissent"]:
+                hit_miss = counts.setdefault(source, [0, 0])
+                hit_miss[1] += 1
+    return {
+        source: round(hits / total, 3)
+        for source, (hits, total) in sorted(counts.items())
+        if total
     }
 
 

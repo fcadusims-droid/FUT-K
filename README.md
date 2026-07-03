@@ -14,6 +14,13 @@ Every number on that panel is recomputed live from the match's event stream
 leakage-free, and the claim is enforced by tests from the math core all the way
 up to the HTTP API.
 
+The **Replay Engine** turns that stream into a living 2D pitch — the ball
+gliding between the match's real recorded touchpoints, goals flashing where
+they actually happened, the engine's pressure reading glowing at each end,
+and a commentator line narrating as the clock runs at 0.25× to 32×:
+
+![Replay Engine — the living 2D pitch at the moment of a goal](docs/images/app-pitch-replay.png)
+
 ## Quick start
 
 Prerequisites: Python 3.11+, Node 20+, and a PostgreSQL database (SQLite works
@@ -54,6 +61,11 @@ comebacks, blown leads, late drama — across every ingested match:
   in the next 10 minutes is plausible (27%)." No jargon by default; the full
   technical panel (regimes, confidence, momentum, prediction meters) lives
   behind an **Analyst mode** toggle.
+- **Replay Engine** — the living 2D pitch: play any match at 0.25×–32×, in
+  standard, minimalist **TV** or **analysis** mode (activity zones, momentum
+  arrow, pressure glow), pause anywhere and ask **why?** — the engine explains
+  the moment. Honest by construction: the ball moves between real recorded
+  touchpoints; nothing on the pitch is invented.
 - **Match Story** — the narrated timeline: kick-off, goals in context, "the
   game changed" beats, momentum swings, full time. Click a beat to jump the
   replay there.

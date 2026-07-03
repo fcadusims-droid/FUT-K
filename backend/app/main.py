@@ -164,6 +164,48 @@ def match_timeline(
     ]
 
 
+@app.get("/matches/{match_id}/events")
+def match_events(match_id: str, db: Session = Depends(get_db)) -> list[dict]:
+    """The match's normalized events with pitch coordinates.
+
+    Raw material for the 2D pitch replay: every persisted event (shots, goals,
+    corners, cards, fouls) with its minute, team and engine 0-100 pitch
+    location (the acting team's attacking frame) where recorded. Real
+    touchpoints only — nothing interpolated server-side.
+    """
+    _get_match(db, match_id)
+    rows = db.execute(
+        select(MatchEvent)
+        .where(MatchEvent.match_id == match_id)
+        .order_by(MatchEvent.minute, MatchEvent.id)
+    ).scalars().all()
+    return [
+        {"minute": r.minute, "type": r.type, "team": r.team,
+         "x": r.x, "y": r.y, "xg": r.xg}
+        for r in rows
+    ]
+
+
+@app.get("/fusion/records")
+def fusion_records(
+    team: str | None = None,
+    league: str | None = None,
+    conflicts_only: bool = False,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    """Cross-provider fused match records (the Data Fusion Layer, persisted).
+
+    Each record carries, per field, the fused value, its confidence, the
+    winning sources and any recorded dissent — populated by
+    ``scripts/ingest_fused.py``.
+    """
+    from .fusionstore import list_fused
+
+    return list_fused(db, team=team, league=league,
+                      conflicts_only=conflicts_only, limit=limit)
+
+
 @app.get("/matches/{match_id}/state/human")
 def match_state_human(
     match_id: str,

@@ -40,3 +40,22 @@ export interface StoryBeat {
   headline: string
   detail: string
 }
+
+// A normalized event with its real pitch location (engine 0-100 frame, each
+// team attacking left -> right). Raw material for the 2D pitch replay.
+export interface MatchEvent2D {
+  minute: number
+  type: string
+  team: 'HOME' | 'AWAY'
+  x: number | null
+  y: number | null
+  xg: number | null
+}
+
+export interface ExplainPayload {
+  claim: string
+  probability: number
+  because: string[]
+  evidence: { metrics_used: number; mechanisms_found: number }
+  reliability: number
+}

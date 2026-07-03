@@ -160,6 +160,31 @@ class IngestionRun(Base):
     quality_notes: Mapped[str | None] = mapped_column(String)
 
 
+class FusedMatchRecord(Base):
+    """Cross-provider fused match records (the Data Fusion Layer, persisted).
+
+    One row per fixture resolved across 2+ providers: every fused field with
+    its confidence, winning sources and recorded dissent (JSON), keyed by the
+    canonical (date, home, away) identity from ``fie.fusion.match_key``.
+    """
+
+    __tablename__ = "fused_matches"
+    __table_args__ = (
+        Index("ix_fused_key", "match_date", "home_team", "away_team", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    league: Mapped[str | None] = mapped_column(String)
+    match_date: Mapped[str] = mapped_column(String)
+    home_team: Mapped[str] = mapped_column(String)   # canonical entity key
+    away_team: Mapped[str] = mapped_column(String)
+    n_sources: Mapped[int] = mapped_column(Integer)
+    sources: Mapped[str] = mapped_column(String)      # comma-joined names
+    fields_json: Mapped[str] = mapped_column(String)  # {field: fuse_field(...)}
+    conflicts: Mapped[str | None] = mapped_column(String)  # comma-joined fields
+    created_at: Mapped[str] = mapped_column(String)
+
+
 class ModelVersion(Base):
     """The continuous-learning loop's version history (product level 19)."""
 
