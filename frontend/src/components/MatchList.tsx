@@ -3,24 +3,20 @@
 
 import { useEffect, useState } from 'react'
 import { fetchMatches } from '../api'
+import { COMPETITIONS } from '../competitions'
 import type { MatchSummary } from '../types'
 
 interface Props {
   onSelect: (id: string) => void
 }
 
-const COMPETITIONS: { id: string; label: string }[] = [
-  { id: '', label: 'All' },
-  { id: '43', label: 'World Cup 2018' },
-  { id: '16', label: 'Champions League finals' },
-  { id: '11', label: 'La Liga 2015/16' },
-]
-
 export function MatchList({ onSelect }: Props) {
-  const [competition, setCompetition] = useState('43')
+  const [tab, setTab] = useState(1) // default: the modern-era flagship
   const [matches, setMatches] = useState<MatchSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const { id: competition, season } = COMPETITIONS[tab]
 
   useEffect(() => {
     let alive = true
@@ -28,7 +24,7 @@ export function MatchList({ onSelect }: Props) {
     fetchMatches(competition || undefined)
       .then((m) => {
         if (!alive) return
-        setMatches(m)
+        setMatches(season ? m.filter((x) => x.season === season) : m)
         setError(null)
       })
       .catch((e) => alive && setError(String(e)))
@@ -36,16 +32,16 @@ export function MatchList({ onSelect }: Props) {
     return () => {
       alive = false
     }
-  }, [competition])
+  }, [competition, season])
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        {COMPETITIONS.map((c) => (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        {COMPETITIONS.map((c, i) => (
           <button
-            key={c.id}
-            className={competition === c.id ? 'primary' : ''}
-            onClick={() => setCompetition(c.id)}
+            key={`${c.id}-${c.season}`}
+            className={tab === i ? 'primary' : ''}
+            onClick={() => setTab(i)}
           >
             {c.label}
           </button>

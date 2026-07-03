@@ -30,6 +30,8 @@ export class FutK {
   stateHuman(id, minute) { return this._get(`/matches/${id}/state/human`, { minute }) }
   timeline(id, step = 5) { return this._get(`/matches/${id}/timeline`, { step }) }
   story(id) { return this._get(`/matches/${id}/story`) }
+  events(id) { return this._get(`/matches/${id}/events`) }
+  fusionRecords(opts = {}) { return this._get('/fusion/records', opts) }
   network(id, side = 'HOME') { return this._get(`/matches/${id}/network`, { side }) }
   similar(id, limit = 5) { return this._get(`/matches/${id}/similar`, { limit }) }
   ask(id, question) { return this._get(`/matches/${id}/ask`, { q: question }) }

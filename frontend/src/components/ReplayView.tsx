@@ -1,12 +1,16 @@
-// Replay a finished match minute by minute: fetch the full panel timeline once,
-// scrub client-side. Play/pause/step controls + click-to-seek on the chart.
-// A table view twin keeps every value reachable without hover (a11y rule).
+// The Replay Engine: a continuous match clock drives the living 2D pitch and
+// every panel below it. requestAnimationFrame advances the clock (1x = one
+// match minute per second, up to 32x); the timeline is fetched once and
+// scrubbed client-side. A table view twin keeps every value reachable without
+// hover (a11y rule).
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchMatchDetail, fetchStory, fetchTimeline } from '../api'
-import type { MatchDetail, PanelState, StoryBeat } from '../types'
+import { useEffect, useMemo, useState } from 'react'
+import { fetchEvents, fetchMatchDetail, fetchStory, fetchTimeline } from '../api'
+import { competitionLabel } from '../competitions'
+import type { MatchDetail, MatchEvent2D, PanelState, StoryBeat } from '../types'
 import { AskBox } from './AskBox'
 import { MiniCurves } from './MiniCurves'
+import { PitchReplay } from './PitchReplay'
 import { SimilarMatches } from './SimilarMatches'
 import { NetworkView } from './NetworkView'
 import { Panel } from './Panel'
@@ -18,10 +22,14 @@ interface Props {
   onOpenMatch: (id: string) => void
 }
 
+const SPEEDS = [0.25, 0.5, 1, 2, 8, 32]
+
 export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
   const [detail, setDetail] = useState<MatchDetail | null>(null)
   const [timeline, setTimeline] = useState<PanelState[]>([])
-  const [idx, setIdx] = useState(0)
+  const [events2d, setEvents2d] = useState<MatchEvent2D[]>([])
+  const [clock, setClock] = useState(1)
+  const [speed, setSpeed] = useState(1)
   const [playing, setPlaying] = useState(false)
   const [showTable, setShowTable] = useState(false)
   const [analyst, setAnalyst] = useState(false)
@@ -29,7 +37,8 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
   const [showStory, setShowStory] = useState(true)
   const [showNetwork, setShowNetwork] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const timer = useRef<number | undefined>(undefined)
+
+  const duration = detail?.duration ?? 90
 
   useEffect(() => {
     let alive = true
@@ -38,8 +47,9 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
         if (!alive) return
         setDetail(d)
         setTimeline(t)
-        setIdx(0)
+        setClock(1)
         fetchStory(matchId).then((s) => alive && setStory(s)).catch(() => {})
+        fetchEvents(matchId).then((e) => alive && setEvents2d(e)).catch(() => {})
       })
       .catch((e) => alive && setError(String(e)))
     return () => {
@@ -47,30 +57,37 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
     }
   }, [matchId])
 
+  // The match clock: continuous minutes, advanced every animation frame.
   useEffect(() => {
     if (!playing) return
-    timer.current = window.setInterval(() => {
-      setIdx((i) => {
-        if (i + 1 >= timeline.length) {
+    let raf = 0
+    let last = performance.now()
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000
+      last = now
+      setClock((c) => {
+        const next = c + dt * speed
+        if (next >= duration) {
           setPlaying(false)
-          return i
+          return duration
         }
-        return i + 1
+        return next
       })
-    }, 400)
-    return () => window.clearInterval(timer.current)
-  }, [playing, timeline.length])
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [playing, speed, duration])
 
+  // timeline[i] is the panel at minute i+1 (step=1) — derive from the clock.
+  const idx = Math.min(timeline.length - 1, Math.max(0, Math.round(clock) - 1))
   const panel = timeline[idx]
   const homeName = detail?.home_team ?? 'HOME'
   const awayName = detail?.away_team ?? 'AWAY'
 
   const seek = useMemo(
-    () => (minute: number) => {
-      const i = timeline.findIndex((p) => p.minute >= minute)
-      setIdx(i === -1 ? timeline.length - 1 : i)
-    },
-    [timeline],
+    () => (minute: number) => setClock(Math.max(1, Math.min(minute, duration))),
+    [duration],
   )
 
   if (error) {
@@ -95,9 +112,54 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
         <button onClick={onBack}>← matches</button>
         <span style={{ color: 'var(--text-muted)' }}>
-          {detail.competition === '43' ? 'World Cup 2018' : detail.competition === '16' ? 'Champions League final' : 'La Liga 2015/16'}
+          {competitionLabel(detail.competition, detail.season)}
           {detail.match_date ? ` · ${detail.match_date}` : ''} · final {detail.home_goals_final}–{detail.away_goals_final}
         </span>
+      </div>
+
+      <div className="card">
+        <PitchReplay
+          matchId={matchId}
+          events={events2d}
+          panel={panel}
+          story={story}
+          clock={clock}
+          playing={playing}
+          homeName={homeName}
+          awayName={awayName}
+        />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
+          <button className="primary" onClick={() => setPlaying((p) => !p)}>
+            {playing ? 'Pause' : 'Play'}
+          </button>
+          <button onClick={() => seek(clock - 1)}>−1&#39;</button>
+          <button onClick={() => seek(clock + 1)}>+1&#39;</button>
+          <input
+            type="range"
+            min={1}
+            max={duration}
+            step={0.1}
+            value={clock}
+            onChange={(e) => setClock(Number(e.target.value))}
+            style={{ flex: 1, accentColor: 'var(--seq-450)' }}
+            aria-label="replay clock"
+          />
+          <span style={{ width: 40, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+            {Math.floor(clock)}&#39;
+          </span>
+          <span style={{ display: 'inline-flex', gap: 2 }}>
+            {SPEEDS.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSpeed(s)}
+                style={s === speed ? { borderColor: 'var(--seq-450)', fontWeight: 700 } : undefined}
+                aria-label={`speed ${s}x`}
+              >
+                {s}×
+              </button>
+            ))}
+          </span>
+        </div>
       </div>
 
       <div className="card">
@@ -141,26 +203,6 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
         />
 
         {analyst && <MiniCurves timeline={timeline} homeName={homeName} awayName={awayName} />}
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
-          <button className="primary" onClick={() => setPlaying((p) => !p)}>
-            {playing ? 'Pause' : 'Play'}
-          </button>
-          <button onClick={() => setIdx((i) => Math.max(0, i - 1))}>−1'</button>
-          <button onClick={() => setIdx((i) => Math.min(timeline.length - 1, i + 1))}>+1'</button>
-          <input
-            type="range"
-            min={0}
-            max={timeline.length - 1}
-            value={idx}
-            onChange={(e) => setIdx(Number(e.target.value))}
-            style={{ flex: 1, accentColor: 'var(--seq-450)' }}
-            aria-label="replay minute"
-          />
-          <span style={{ width: 40, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-            {Math.round(panel.minute)}'
-          </span>
-        </div>
       </div>
 
       <div className="card">

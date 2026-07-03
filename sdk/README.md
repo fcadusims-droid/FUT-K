@@ -40,6 +40,7 @@ const twins = await fk.similar('7525')
 | Product name | Endpoint |
 |---|---|
 | match | `GET /matches`, `GET /matches/{id}` |
+| replay 2D | `GET /matches/{id}/events` (located events for the pitch replay) |
 | prediction | `GET /matches/{id}/state?minute=` |
 | narrative | `GET /matches/{id}/story`, `GET /matches/{id}/state/human` |
 | explain | `GET /matches/{id}/explain?minute=` |
@@ -50,5 +51,6 @@ const twins = await fk.similar('7525')
 | network | `GET /matches/{id}/network?side=` |
 | insights | `GET /insights/{preset}` |
 | benchmarks | `GET /benchmarks` |
+| fusion | `GET /fusion/records?team=&league=&conflicts_only=` |
 
 Both SDKs are AGPL-3.0, © 2026 João Vitor Perazzolo (Johnny Kestler).

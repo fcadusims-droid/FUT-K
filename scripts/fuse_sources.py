@@ -1,190 +1,55 @@
-"""Data Fusion Layer on real data: StatsBomb x football-data.co.uk x openfootball.
+"""Data Fusion Layer on real data, across leagues and providers.
 
-Three independent providers describe the same fixtures (Bundesliga 2023/24 —
-StatsBomb open data covers Bayer Leverkusen's 34 matches; football-data.co.uk
-covers the whole league with scores, corners and cards; openfootball adds
-community-maintained FT/HT results). This script runs the deterministic
-fusion pipeline end to end:
+Independent providers describe the same fixtures (StatsBomb events,
+football-data.co.uk official stats, openfootball community results). This
+script runs the deterministic fusion pipeline end to end for every requested
+league preset:
 
     entity resolution -> match resolution -> field comparison ->
     weighted fusion -> unified records + measured agreement rates
+    -> measured per-source priors (the feedback loop, closed)
 
-and writes validation/results/RESULTS_FUSION.md. The agreement table is the
-empirical starting point for per-source reliability scores.
+and writes validation/results/RESULTS_FUSION.md. The agreement tables are the
+empirical per-source reliability; `priors_from_agreement` turns them into the
+next run's priors deterministically.
 """
 
 from __future__ import annotations
 
 import argparse
-import csv
-import io
 import os
-import urllib.request
 
-from fie.fusion import agreement_report, fuse_match, resolve_matches
-from fie.sources.statsbomb import StatsBombSource
+from fie.fusion import (
+    agreement_report,
+    fuse_match,
+    priors_from_agreement,
+    resolve_matches,
+)
+from fie.sources.providers import (
+    FIELDS,
+    FUSION_LEAGUES,
+    PRIORS,
+    load_league_sources,
+)
 
-FD_URL = "https://www.football-data.co.uk/mmz4281/{season}/{league}.csv"
-OF_URL = "https://raw.githubusercontent.com/openfootball/football.json/master/{season}/{league}.json"
 DEFAULT_CACHE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".sb_cache"
 )
 
-# Priors: StatsBomb is curated event data (higher); football-data aggregates
-# official stats (high, slightly lower for in-match counts). These are inputs
-# to the vote, and the *measured* agreement rates below are how they evolve.
-PRIORS = {"statsbomb": 0.95, "football_data": 0.90, "openfootball": 0.80}
 
-FIELDS = {
-    "home_goals": 0, "away_goals": 0,
-    "ht_home": 0, "ht_away": 0,
-    "corners_home": 0, "corners_away": 0,
-    "yellows_home": 0, "yellows_away": 0,
-    "reds_home": 0, "reds_away": 0,
-}
-
-
-def _fd_date_to_iso(d: str) -> str:
-    day, month, year = d.split("/")
-    if len(year) == 2:
-        year = "20" + year
-    return f"{year}-{month}-{day}"
-
-
-def load_football_data(league: str, season: str, cache_dir: str) -> list:
-    os.makedirs(cache_dir, exist_ok=True)
-    path = os.path.join(cache_dir, f"fd_{league}_{season}.csv")
-    if not os.path.exists(path):
-        with urllib.request.urlopen(FD_URL.format(season=season, league=league),
-                                    timeout=60) as r:
-            data = r.read()
-        with open(path, "wb") as fh:
-            fh.write(data)
-    text = open(path, "rb").read().decode("latin-1")
-    out = []
-    for row in csv.DictReader(io.StringIO(text)):
-        try:
-            out.append({
-                "date": _fd_date_to_iso(row["Date"]),
-                "home": row["HomeTeam"], "away": row["AwayTeam"],
-                "home_goals": int(row["FTHG"]), "away_goals": int(row["FTAG"]),
-                "ht_home": int(row["HTHG"]), "ht_away": int(row["HTAG"]),
-                "corners_home": int(row["HC"]), "corners_away": int(row["AC"]),
-                "yellows_home": int(row["HY"]), "yellows_away": int(row["AY"]),
-                "reds_home": int(row["HR"]), "reds_away": int(row["AR"]),
-            })
-        except (KeyError, ValueError):
-            continue
-    return out
-
-
-def load_openfootball(season: str, league: str, cache_dir: str) -> list:
-    """Community-maintained results (3rd independent provider): FT + HT scores."""
-    import json
-
-    os.makedirs(cache_dir, exist_ok=True)
-    path = os.path.join(cache_dir, f"of_{league.replace('.', '_')}_{season}.json")
-    if not os.path.exists(path):
-        with urllib.request.urlopen(OF_URL.format(season=season, league=league),
-                                    timeout=60) as r:
-            data = r.read()
-        with open(path, "wb") as fh:
-            fh.write(data)
-    doc = json.load(open(path, encoding="utf-8"))
-    matches = doc.get("matches") or [m for r in doc.get("rounds", [])
-                                     for m in r["matches"]]
-    out = []
-    for m in matches:
-        score = m.get("score") or {}
-        ft = score.get("ft")
-        ht = score.get("ht")
-        if not ft:
-            continue
-        out.append({
-            "date": m["date"], "home": m["team1"], "away": m["team2"],
-            "home_goals": ft[0], "away_goals": ft[1],
-            "ht_home": ht[0] if ht else None,
-            "ht_away": ht[1] if ht else None,
-        })
-    return out
-
-
-def load_statsbomb(competition: int, season: int, cache_dir: str) -> list:
-    source = StatsBombSource(competition, season, cache_dir=cache_dir)
-    out = []
-    for raw in source.matches():
-        mid = raw["match_id"]
-        try:
-            match = source.match(mid)
-        except Exception as exc:  # noqa: BLE001
-            print(f"  statsbomb match {mid}: skipped ({exc})")
-            continue
-        raw_events = source.raw_events(mid)
-        ht = {"HOME": 0, "AWAY": 0}
-        home_name = match["home_team"]
-        for re_ in raw_events:
-            if re_.get("period") != 1:
-                continue
-            tname = re_.get("team", {}).get("name")
-            etype = re_.get("type", {}).get("name")
-            if (etype == "Shot"
-                    and re_.get("shot", {}).get("outcome", {}).get("name") == "Goal"):
-                ht["HOME" if tname == home_name else "AWAY"] += 1
-            elif etype == "Own Goal For":
-                # Own goals are separate events in StatsBomb — the fusion layer's
-                # majority vote exposed this blind spot (see RESULTS_FUSION.md).
-                ht["HOME" if tname == home_name else "AWAY"] += 1
-        counts = {"corner": {"HOME": 0, "AWAY": 0},
-                  "yellow_card": {"HOME": 0, "AWAY": 0},
-                  "red_card": {"HOME": 0, "AWAY": 0}}
-        for e in match["events"]:
-            if e.type in counts:
-                counts[e.type][e.team] += 1
-        out.append({
-            "date": match.get("match_date"),
-            "home": match["home_team"], "away": match["away_team"],
-            "home_goals": match.get("home_score"), "away_goals": match.get("away_score"),
-            "ht_home": ht["HOME"], "ht_away": ht["AWAY"],
-            "corners_home": counts["corner"]["HOME"],
-            "corners_away": counts["corner"]["AWAY"],
-            "yellows_home": counts["yellow_card"]["HOME"],
-            "yellows_away": counts["yellow_card"]["AWAY"],
-            "reds_home": counts["red_card"]["HOME"],
-            "reds_away": counts["red_card"]["AWAY"],
-        })
-    return out
-
-
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--sb", default="9/281", help="StatsBomb comp/season")
-    ap.add_argument("--fd", default="D1/2324", help="football-data league/season")
-    ap.add_argument("--of", default="2023-24/de.1", help="openfootball season/league")
-    ap.add_argument("--cache", default=DEFAULT_CACHE)
-    ap.add_argument("--out", default="validation/results/RESULTS_FUSION.md")
-    args = ap.parse_args()
-
-    comp, season = (int(x) for x in args.sb.split("/"))
-    league, fd_season = args.fd.split("/")
-
-    print("Loading sources ...")
-    of_season, of_league = args.of.split("/")
-    sources = {
-        "statsbomb": load_statsbomb(comp, season, args.cache),
-        "football_data": load_football_data(league, fd_season, args.cache),
-        "openfootball": load_openfootball(of_season, of_league, args.cache),
-    }
-    n_sb, n_fd = len(sources["statsbomb"]), len(sources["football_data"])
-    n_of = len(sources["openfootball"])
+def fuse_league(key: str, cache_dir: str) -> dict:
+    """Run the full pipeline for one league preset; return everything measured."""
+    label = FUSION_LEAGUES[key]["label"]
+    print(f"Loading sources for {label} ...")
+    sources = load_league_sources(key, cache_dir)
     resolved = resolve_matches(sources)
-    both = [f for f in resolved if len(f["records"]) >= 2]
-    triple = [f for f in resolved if len(f["records"]) == 3]
-    print(f"statsbomb={n_sb} football_data={n_fd} openfootball={n_of} "
-          f"-> 2+ sources: {len(both)}, all 3: {len(triple)}")
+    multi = [f for f in resolved if len(f["records"]) >= 2]
+    full = [f for f in resolved if len(f["records"]) == len(sources)]
+    counts = {name: len(records) for name, records in sorted(sources.items())}
+    print(f"  {counts} -> 2+ sources: {len(multi)}, all {len(sources)}: {len(full)}")
 
-    report = agreement_report(both, FIELDS, PRIORS)
     conflicts = []
-    for fixture in both:
+    for fixture in multi:
         unified = fuse_match(fixture["records"], FIELDS, PRIORS)
         for field in unified["_conflicts"]:
             cell = unified[field]
@@ -193,49 +58,97 @@ def main():
                 f"{field}: fused={cell['value']} (conf {cell['confidence']}, "
                 f"dissent {cell['dissent']})"
             )
+    return {
+        "key": key, "label": label, "counts": counts,
+        "n_sources": len(sources), "multi": multi, "n_full": len(full),
+        "report": agreement_report(multi, FIELDS, PRIORS),
+        "conflicts": conflicts,
+    }
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--leagues", default=",".join(FUSION_LEAGUES),
+                    help=f"comma-separated presets from {sorted(FUSION_LEAGUES)}")
+    ap.add_argument("--cache", default=DEFAULT_CACHE)
+    ap.add_argument("--out", default="validation/results/RESULTS_FUSION.md")
+    args = ap.parse_args()
+
+    leagues = [fuse_league(k.strip(), args.cache)
+               for k in args.leagues.split(",") if k.strip()]
+
+    # The feedback loop: measure per-source reliability across every league,
+    # then re-fuse with the measured priors and count changed values.
+    all_multi = [f for lg in leagues for f in lg["multi"]]
+    measured = priors_from_agreement(all_multi, FIELDS, PRIORS)
+    flips = 0
+    for fixture in all_multi:
+        before = fuse_match(fixture["records"], FIELDS, PRIORS)
+        after = fuse_match(fixture["records"], FIELDS, measured)
+        flips += sum(1 for f in FIELDS if before[f]["value"] != after[f]["value"])
 
     lines = [
-        "# RESULTS (fusion) — Data Fusion Layer on three real providers",
+        "# RESULTS (fusion) — Data Fusion Layer on real providers",
         "",
-        f"> Generated by `scripts/fuse_sources.py`. StatsBomb {args.sb} events x "
-        f"football-data.co.uk {args.fd} match stats x openfootball {args.of} "
-        "community results. Deterministic pipeline: entity resolution -> "
-        f"match resolution -> weighted fusion (priors {PRIORS}).",
+        "> Generated by `scripts/fuse_sources.py`. Deterministic pipeline: "
+        "entity resolution -> match resolution -> weighted fusion "
+        f"(configured priors {PRIORS}).",
         "",
-        f"- StatsBomb: **{n_sb}** · football-data: **{n_fd}** · "
-        f"openfootball: **{n_of}** records",
-        f"- Fixtures resolved across 2+ sources: **{len(both)}** · across all "
-        f"3: **{len(triple)}/{n_sb}** (majority voting live)",
-        "- The half-time score (`ht_home`/`ht_away`) doubles as a **temporal "
-        "anchor**: StatsBomb's value is reconstructed from period-1 goal events, "
-        "so agreement here validates the event clock against two independent "
-        "scoreboard providers.",
-        "",
-        "## Measured cross-source agreement",
-        "",
-        "| Field | Compared | Agreed | Rate |",
-        "|---|---|---|---|",
     ]
-    for field, s in report.items():
-        lines.append(f"| {field} | {s['compared']} | {s['agreed']} | "
-                     f"{s['rate'] if s['rate'] is not None else '—'} |")
-    lines += ["", f"## Conflicts detected ({len(conflicts)})", ""]
-    lines += [f"- {c}" for c in conflicts[:20]] or ["- none"]
-    if len(conflicts) > 20:
-        lines.append(f"- … and {len(conflicts) - 20} more")
+    for lg in leagues:
+        counts = " · ".join(f"{k}: **{v}**" for k, v in lg["counts"].items())
+        lines += [
+            f"## {lg['label']}",
+            "",
+            f"- Records: {counts}",
+            f"- Fixtures resolved across 2+ sources: **{len(lg['multi'])}** · "
+            f"across all {lg['n_sources']}: **{lg['n_full']}**",
+            "",
+            "| Field | Compared | Agreed | Rate |",
+            "|---|---|---|---|",
+        ]
+        for field, s in lg["report"].items():
+            lines.append(f"| {field} | {s['compared']} | {s['agreed']} | "
+                         f"{s['rate'] if s['rate'] is not None else '—'} |")
+        lines += ["", f"### Conflicts detected ({len(lg['conflicts'])})", ""]
+        lines += [f"- {c}" for c in lg["conflicts"][:20]] or ["- none"]
+        if len(lg["conflicts"]) > 20:
+            lines.append(f"- … and {len(lg['conflicts']) - 20} more")
+        lines.append("")
+
     lines += [
+        "## Measured priors (the feedback loop, closed)",
+        "",
+        "`priors_from_agreement` scores each source against the fused majority "
+        "over every compared field above — deterministic, one iteration:",
+        "",
+        "| Source | Configured prior | Measured reliability |",
+        "|---|---|---|",
+    ]
+    for source, rate in measured.items():
+        lines.append(f"| {source} | {PRIORS.get(source, 1.0)} | {rate} |")
+    lines += [
+        "",
+        f"Re-fusing every fixture with the measured priors changes "
+        f"**{flips}** fused values — the configured priors and the data "
+        "currently tell the same story, which is itself a result.",
         "",
         "## Reading",
         "",
-        "- **Goals should agree ~100%** — all providers watch the same scoreboard; "
-        "any goal conflict would indicate an ingestion bug, so this doubles as an "
-        "end-to-end data-quality check. It did: the majority vote on half-time "
-        "scores exposed that our StatsBomb extraction missed own goals "
-        "(separate `Own Goal For` events, not `Shot -> Goal`).",
+        "- **Goals should agree ~100%** — all providers watch the same "
+        "scoreboard; any goal conflict would indicate an ingestion bug, so "
+        "this doubles as an end-to-end data-quality check. It did: the "
+        "majority vote on half-time scores exposed that our StatsBomb "
+        "extraction missed own goals (separate `Own Goal For` events, not "
+        "`Shot -> Goal`).",
+        "- The half-time score (`ht_home`/`ht_away`) doubles as a **temporal "
+        "anchor**: StatsBomb's value is reconstructed from period-1 events, "
+        "so agreement validates the event clock against independent "
+        "scoreboard providers.",
         "- **Corners/cards agreement measures definitional drift** between an "
         "event-collector (StatsBomb) and an official-stats aggregator "
-        "(football-data). Disagreements are *information*: they are exactly the "
-        "per-source reliability signal the fusion layer feeds on.",
+        "(football-data). Disagreements are *information*: they are exactly "
+        "the per-source reliability signal the fusion layer feeds on.",
         "- Every fused field carries provenance (which sources), a confidence "
         "(winning share of prior weight), and recorded dissent — nothing is "
         "silently overwritten.",
@@ -243,8 +156,8 @@ def main():
     ]
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
-    print("\n".join(lines[4:20]))
-    print(f"\nWrote {args.out}")
+    print(f"\nMeasured priors: {measured} (re-fusion flips: {flips})")
+    print(f"Wrote {args.out}")
 
 
 if __name__ == "__main__":

@@ -38,9 +38,29 @@ that we sit below the closing line.
    matches — "comebacks from 2 down", "wildest momentum swings" — turning the
    engine into a query system.
 
+## The four modes (product direction)
+
+FUT-K is not a stats site with charts; it is a **digital twin of the match**
+you can explore. The slogan: *"Relive any match. Stop time. Ask questions.
+Change decisions. See what would have happened."* Four modes, one engine:
+
+| Mode | What it is | Status |
+|---|---|---|
+| **Replay** | the living 2D pitch: ball gliding between real touchpoints, event pings, goal flashes, speeds 0.25×–32×, TV/standard/analysis views, the engine narrating as the clock runs | ✅ shipped (Replay Engine v1) |
+| **Analysis** | layers on top of the replay: activity zones from real event locations, pressure glow, momentum arrow, pause-and-ask ("why?" → the explainability cascade) | ✅ shipped (analysis mode + `why?`) |
+| **Live** | the same pitch fed by live multi-source feeds through the fusion layer | future (needs live sources; design doc Section 4) |
+| **What If?** | counterfactuals: remove a card, swap a substitution, re-run the engine's pure functions from that minute | future (the engine's purity makes this cheap) |
+
+The visual bet is deliberate: **no 3D, no fabricated player positions, no
+fake realism**. The brain understands motion better than numbers — so the
+replay shows real recorded touchpoints, honest reconstructions between them,
+and the engine's validated reading as tint and motion. Value is in the
+information, not the render.
+
 ## v1 scope (this iteration)
 
 - Humanized default panel + Analyst mode toggle
 - Match Story (narrated beats from the replay timeline)
 - Regime band + Pressure Index + Confidence Curve charts
 - Explore page: preset historical queries over all ingested matches
+- **Replay Engine v1**: the 2D pitch replay above, on every ingested match

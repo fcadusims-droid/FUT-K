@@ -237,7 +237,13 @@ The dataset now includes **149 matches from 2020+** — World Cup 2022 (64,
   *caught a blind spot in our own pipeline* (StatsBomb records own goals as
   separate `Own Goal For` events, not `Shot → Goal`; two dissents pointed
   straight at it, and after the fix agreement is 294/294). Deterministic by
-  construction.
+  construction. The pipeline also covers the **Premier League 2023/24**
+  (380/380 fixtures resolved across football-data × openfootball, zero
+  conflicts), and `priors_from_agreement` closes the feedback loop: measured
+  reliabilities (statsbomb 1.0 · openfootball 1.0 · football-data 0.999)
+  replace the configured priors deterministically — re-fusing with them
+  changes 0 values. Fused records persist to Postgres
+  (`backend/scripts/ingest_fused.py`, served at `GET /fusion/records`).
 
 ---
 

@@ -62,6 +62,16 @@ class FutK:
         """The narrated Match Story."""
         return self._get(f"/matches/{match_id}/story")
 
+    def events(self, match_id: str) -> list:
+        """Normalized events with real pitch coordinates (2D replay data)."""
+        return self._get(f"/matches/{match_id}/events")
+
+    def fusion_records(self, team: str | None = None, league: str | None = None,
+                       conflicts_only: bool = False) -> list:
+        """Cross-provider fused match records with per-field provenance."""
+        return self._get("/fusion/records", team=team, league=league,
+                         conflicts_only=conflicts_only or None)
+
     def network(self, match_id: str, side: str = "HOME") -> dict:
         """The team's passing network for the match."""
         return self._get(f"/matches/{match_id}/network", side=side)
