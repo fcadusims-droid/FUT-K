@@ -48,6 +48,10 @@ uvicorn app.main:app --reload
   (the replay scrubber's data)
 - `GET /matches/{id}/events` — normalized events with real pitch coordinates
   and player identity (the 2D pitch replay's raw material)
+- `GET /matches/{id}/replay2d` — the Digital Match Twin's dense on-ball stream
+  (every pass/carry/shot with real start+end locations and sub-second timing)
+- `GET /matches/{id}/crosscheck` — multi-provider verification of the
+  fixture's facts (resolves it in the fusion layer's `fused_matches`)
 - `GET /matches/{id}/whatif?minute=&type=&team=` — What If?: remove one real
   event and re-run the engine (baseline vs counterfactual series)
 - `GET /players/profiles?team=&archetype=&min_actions=` — player DNA profiles

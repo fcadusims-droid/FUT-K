@@ -68,6 +68,41 @@ export interface PlayerProfile {
   archetype: string | null
 }
 
+// One item of the Digital Match Twin's dense on-ball stream: a real recorded
+// action with sub-second time. Segments (Pass/Carry/Shot) also carry an end
+// location and duration — the ball's true trajectory.
+export interface TwinItem {
+  t: number
+  type: string
+  team: 'HOME' | 'AWAY'
+  player: string | null
+  player_id: string | null
+  x: number | null
+  y: number | null
+  x2?: number | null
+  y2?: number | null
+  dur?: number
+  outcome?: string
+}
+
+export interface TwinStream {
+  match_id: string
+  n_items: number
+  built_at: string
+  items: TwinItem[]
+}
+
+export interface CrossCheck {
+  providers: number
+  verified: boolean
+  sources?: string[]
+  fields_compared?: number
+  fields_agreed?: number
+  conflicts?: string[]
+  league?: string
+  note?: string
+}
+
 export interface WhatIfSeries {
   goal_next_10min: number[]
   next_goal_home: number[]

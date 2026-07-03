@@ -160,6 +160,25 @@ class IngestionRun(Base):
     quality_notes: Mapped[str | None] = mapped_column(String)
 
 
+class ReplayStream(Base):
+    """The Digital Match Twin's dense on-ball stream, one row per match.
+
+    Every pass/carry/shot with real start+end locations and sub-second
+    timestamps, plus point actions (receipts, recoveries, duels...), extracted
+    from the raw provider feed by ``fie.sources.statsbomb.ball_stream``.
+    Stored as JSON so the replay endpoint serves one read, no recomputation.
+    """
+
+    __tablename__ = "replay_streams"
+
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("matches.id"), primary_key=True
+    )
+    n_items: Mapped[int] = mapped_column(Integer)
+    payload: Mapped[str] = mapped_column(String)      # JSON list of items
+    built_at: Mapped[str] = mapped_column(String)
+
+
 class FusedMatchRecord(Base):
     """Cross-provider fused match records (the Data Fusion Layer, persisted).
 
