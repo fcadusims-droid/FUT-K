@@ -11,6 +11,7 @@
 
 import { useMemo, useState } from 'react'
 import { fetchExplain } from '../api'
+import { PlayerCard } from './PlayerCard'
 import type { ExplainPayload, MatchEvent2D, PanelState, StoryBeat } from '../types'
 
 type Mode = 'standard' | 'tv' | 'analysis'
@@ -32,6 +33,8 @@ interface Pt {
   y: number
   type: string
   team: 'HOME' | 'AWAY'
+  player_id: string | null
+  player: string | null
 }
 
 // Engine coordinates are 0-100 x 0-100 in the acting team's own attacking
@@ -51,15 +54,21 @@ export function PitchReplay({
   const [mode, setMode] = useState<Mode>('standard')
   const [why, setWhy] = useState<ExplainPayload | null>(null)
   const [whyBusy, setWhyBusy] = useState(false)
+  const [selected, setSelected] = useState<{ id: string; name: string | null } | null>(null)
 
   const located: Pt[] = useMemo(
     () =>
       events
         .filter((e) => e.x !== null && e.y !== null)
-        .map((e) => ({ minute: e.minute, type: e.type, team: e.team, ...toPitch(e) }))
+        .map((e) => ({ minute: e.minute, type: e.type, team: e.team,
+                       player_id: e.player_id, player: e.player, ...toPitch(e) }))
         .sort((a, b) => a.minute - b.minute),
     [events],
   )
+
+  const pickPlayer = (p: Pt) => {
+    if (p.player_id) setSelected({ id: p.player_id, name: p.player })
+  }
 
   // Ball position: interpolate between the two real touchpoints around the
   // clock. Between touches the true path is unknown — the glide is a visual
@@ -113,6 +122,16 @@ export function PitchReplay({
     for (const b of story) if (b.minute <= clock) last = b
     return last
   }, [story, clock])
+
+  // The player behind the most recent touchpoint — click-through to Player DNA.
+  const lastTouch = useMemo(() => {
+    let last: Pt | null = null
+    for (const p of located) {
+      if (p.minute > clock) break
+      if (p.player_id) last = p
+    }
+    return last
+  }, [located, clock])
 
   const mm = Math.floor(clock)
   const ss = Math.floor((clock - mm) * 60)
@@ -217,9 +236,10 @@ export function PitchReplay({
           </g>
         )}
 
-        {/* event pings — something real just happened here */}
+        {/* event pings — something real just happened here; click for the player */}
         {pings.map((p, i) => (
-          <g key={`${p.minute}-${i}`}>
+          <g key={`${p.minute}-${i}`} onClick={() => pickPlayer(p)}
+             style={p.player_id ? { cursor: 'pointer' } : undefined}>
             <circle cx={p.x} cy={p.y} r={1.2 + (clock - p.minute) * 3.4}
                     fill="none" stroke={p.team === 'HOME' ? 'var(--home)' : 'var(--away)'}
                     strokeWidth="0.5" opacity={Math.max(0, 1 - (clock - p.minute) / 1.2)} />
@@ -235,7 +255,9 @@ export function PitchReplay({
           <rect key={`card-${i}`} x={p.x - 0.9} y={p.y - 1.3} width="1.8" height="2.6" rx="0.3"
                 fill={p.type === 'red_card' ? '#d33' : '#e6c229'}
                 stroke="var(--text-primary)" strokeWidth="0.15"
-                transform={`rotate(8 ${p.x} ${p.y})`} />
+                transform={`rotate(8 ${p.x} ${p.y})`}
+                onClick={() => pickPlayer(p)}
+                style={p.player_id ? { cursor: 'pointer' } : undefined} />
         ))}
 
         {/* the ball — gliding between real touchpoints */}
@@ -261,6 +283,27 @@ export function PitchReplay({
           <strong>{beat.headline}</strong>{' '}
           <span style={{ color: 'var(--text-secondary)' }}>{beat.detail}</span>
         </div>
+      )}
+      {mode !== 'tv' && lastTouch && (
+        <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
+          last touch:{' '}
+          <button
+            onClick={() => pickPlayer(lastTouch)}
+            style={{ fontSize: 12, padding: '0 8px' }}
+          >
+            {Math.floor(lastTouch.minute)}&#39; {lastTouch.type.replace('_', ' ')} —{' '}
+            {lastTouch.player ?? `player ${lastTouch.player_id}`}
+          </button>{' '}
+          <span style={{ color: 'var(--text-muted)' }}>(click for Player DNA)</span>
+        </div>
+      )}
+
+      {selected && (
+        <PlayerCard
+          playerId={selected.id}
+          playerName={selected.name}
+          onClose={() => setSelected(null)}
+        />
       )}
       {mode === 'analysis' && (
         <div style={{ marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>

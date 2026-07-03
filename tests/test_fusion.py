@@ -151,3 +151,19 @@ def test_priors_from_agreement_scores_sources_against_majority():
     # A source never compared against anyone yields no score.
     lonely = resolve_matches({"solo": sources["a"]})
     assert priors_from_agreement(lonely, fields, priors={}) == {}
+
+
+def test_normalization_serie_a_and_ligue_1():
+    from fie.fusion import normalize_entity as n
+    assert n("Genoa CFC") == n("Genoa") == "genoa"
+    assert n("US Sassuolo Calcio") == n("Sassuolo") == "sassuolo"
+    assert n("ACF Fiorentina") == n("Fiorentina") == "fiorentina"
+    assert n("SS Lazio") == n("Lazio") == "lazio"
+    assert n("Hellas Verona") == n("Verona") == "verona"
+    assert n("AC Milan") == n("Milan") == "milan"
+    assert n("LOSC Lille") == n("Lille OSC") == n("Lille") == "lille"
+    assert n("OGC Nice") == n("Nice") == "nice"
+    assert n("Racing Club de Lens") == n("RC Lens") == n("Lens") == "lens"
+    assert n("Stade Brestois 29") == n("Brest") == "brest"
+    assert n("Clermont Foot 63") == n("Clermont") == "clermont"
+    assert n("Montpellier HSC") == n("Montpellier") == "montpellier"

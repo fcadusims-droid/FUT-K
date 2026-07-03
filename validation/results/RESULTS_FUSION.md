@@ -47,13 +47,57 @@
 
 - none
 
+## Serie A 2023/24
+
+- Records: football_data: **380** · openfootball: **380**
+- Fixtures resolved across 2+ sources: **380** · across all 2: **380**
+
+| Field | Compared | Agreed | Rate |
+|---|---|---|---|
+| home_goals | 380 | 380 | 1.0 |
+| away_goals | 380 | 380 | 1.0 |
+| ht_home | 350 | 350 | 1.0 |
+| ht_away | 350 | 350 | 1.0 |
+| corners_home | 0 | 0 | — |
+| corners_away | 0 | 0 | — |
+| yellows_home | 0 | 0 | — |
+| yellows_away | 0 | 0 | — |
+| reds_home | 0 | 0 | — |
+| reds_away | 0 | 0 | — |
+
+### Conflicts detected (0)
+
+- none
+
+## Ligue 1 2023/24
+
+- Records: football_data: **306** · openfootball: **306**
+- Fixtures resolved across 2+ sources: **306** · across all 2: **306**
+
+| Field | Compared | Agreed | Rate |
+|---|---|---|---|
+| home_goals | 306 | 306 | 1.0 |
+| away_goals | 306 | 306 | 1.0 |
+| ht_home | 279 | 279 | 1.0 |
+| ht_away | 279 | 279 | 1.0 |
+| corners_home | 0 | 0 | — |
+| corners_away | 0 | 0 | — |
+| yellows_home | 0 | 0 | — |
+| yellows_away | 0 | 0 | — |
+| reds_home | 0 | 0 | — |
+| reds_away | 0 | 0 | — |
+
+### Conflicts detected (0)
+
+- none
+
 ## Measured priors (the feedback loop, closed)
 
 `priors_from_agreement` scores each source against the fused majority over every compared field above — deterministic, one iteration:
 
 | Source | Configured prior | Measured reliability |
 |---|---|---|
-| football_data | 0.9 | 0.999 |
+| football_data | 0.9 | 1.0 |
 | openfootball | 0.8 | 1.0 |
 | statsbomb | 0.95 | 1.0 |
 

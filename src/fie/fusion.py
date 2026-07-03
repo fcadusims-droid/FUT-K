@@ -37,7 +37,6 @@ TEAM_ALIASES = {
     "celta": "celta vigo",
     "celta de vigo": "celta vigo",
     "la coruna": "deportivo la coruna",
-    "rc deportivo la coruna": "deportivo la coruna",
     "vallecano": "rayo vallecano",
     "sp gijon": "sporting gijon",
     "bayern munchen": "bayern munich",
@@ -74,21 +73,30 @@ TEAM_ALIASES = {
     "inter": "internazionale",
     "inter milan": "internazionale",
     "internazionale milano": "internazionale",
-    "ac milan": "milan",
-    "as roma": "roma",
     "ssc napoli": "napoli",
+    "hellas verona": "verona",
     "paris sg": "paris saint germain",
     "psg": "paris saint germain",
     "olympique marseille": "marseille",
     "olympique de marseille": "marseille",
     "olympique lyonnais": "lyon",
-    "as monaco": "monaco",
+    "losc lille": "lille",
+    "racing club de lens": "lens",
+    "stade brestois": "brest",
+    "stade rennais": "rennes",
+    "stade de reims": "reims",
+    "strasbourg alsace": "strasbourg",
 }
 
 # Structural tokens that carry no identity: club-type prefixes/suffixes that
-# providers include or omit freely ("Arsenal FC" vs "Arsenal", "AFC
-# Bournemouth" vs "Bournemouth", "Real Madrid CF") and the ampersand.
-_NOISE_TOKENS = {"fc", "afc", "cf", "&"}
+# providers include or omit freely ("Arsenal FC" vs "Arsenal", "Genoa CFC",
+# "US Lecce", "Montpellier HSC", "Clermont Foot", "Real Madrid CF") and the
+# ampersand. Exact token matches only, applied before the alias table.
+_NOISE_TOKENS = {
+    "fc", "afc", "cf", "&",
+    "ac", "acf", "as", "bc", "calcio", "cfc", "foot", "hsc",
+    "ogc", "osc", "rc", "ss", "us",
+}
 
 
 def normalize_entity(name: str) -> str:

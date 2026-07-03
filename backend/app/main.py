@@ -179,11 +179,56 @@ def match_events(match_id: str, db: Session = Depends(get_db)) -> list[dict]:
         .where(MatchEvent.match_id == match_id)
         .order_by(MatchEvent.minute, MatchEvent.id)
     ).scalars().all()
+    # Player identity for click-through to Player DNA: one name lookup for
+    # every distinct player involved in this match's events.
+    ids = {r.player_id for r in rows if r.player_id}
+    names = {}
+    if ids:
+        names = {
+            p.player_id: p.name
+            for p in db.execute(
+                select(PlayerProfile).where(PlayerProfile.player_id.in_(ids))
+            ).scalars()
+        }
     return [
         {"minute": r.minute, "type": r.type, "team": r.team,
-         "x": r.x, "y": r.y, "xg": r.xg}
+         "x": r.x, "y": r.y, "xg": r.xg,
+         "player_id": r.player_id,
+         "player": names.get(r.player_id)}
         for r in rows
     ]
+
+
+@app.get("/matches/{match_id}/whatif")
+def whatif_endpoint(
+    match_id: str,
+    minute: float = Query(..., ge=0, le=150),
+    type: str = Query(..., alias="type"),
+    team: str = Query(...),
+    db: Session = Depends(get_db),
+) -> dict:
+    """What If? (the fourth mode): remove one real event and re-run the engine.
+
+    Returns baseline vs counterfactual panel series from the event's minute to
+    full time. Purely deterministic — see the payload's honesty note.
+    """
+    from .whatif import REMOVABLE, whatif_remove
+
+    if type not in REMOVABLE:
+        raise HTTPException(status_code=422,
+                            detail=f"type must be one of {sorted(REMOVABLE)}")
+    if team not in ("HOME", "AWAY"):
+        raise HTTPException(status_code=422, detail="team must be HOME or AWAY")
+    _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    result = whatif_remove(events, minute, type, team, match_id,
+                           params=get_active_params(db))
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no {type} by {team} near minute {minute}",
+        )
+    return result
 
 
 @app.get("/fusion/records")
@@ -401,10 +446,13 @@ def insights(query: str, team: str | None = None, db: Session = Depends(get_db))
 def player_profiles(
     team: str | None = None,
     archetype: str | None = None,
+    player_id: str | None = None,
     min_actions: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[dict]:
     stmt = select(PlayerProfile)
+    if player_id:
+        stmt = stmt.where(PlayerProfile.player_id == player_id)
     if team:
         stmt = stmt.where(PlayerProfile.team == team)
     if archetype:

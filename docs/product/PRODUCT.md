@@ -48,8 +48,8 @@ Change decisions. See what would have happened."* Four modes, one engine:
 |---|---|---|
 | **Replay** | the living 2D pitch: ball gliding between real touchpoints, event pings, goal flashes, speeds 0.25×–32×, TV/standard/analysis views, the engine narrating as the clock runs | ✅ shipped (Replay Engine v1) |
 | **Analysis** | layers on top of the replay: activity zones from real event locations, pressure glow, momentum arrow, pause-and-ask ("why?" → the explainability cascade) | ✅ shipped (analysis mode + `why?`) |
+| **What If?** | counterfactuals: remove a goal or card and re-run the engine's pure functions from that minute — baseline vs counterfactual, honestly labeled a *re-reading, not a prophecy* | ✅ shipped (`/matches/{id}/whatif` + the What If? card) |
 | **Live** | the same pitch fed by live multi-source feeds through the fusion layer | future (needs live sources; design doc Section 4) |
-| **What If?** | counterfactuals: remove a card, swap a substitution, re-run the engine's pure functions from that minute | future (the engine's purity makes this cheap) |
 
 The visual bet is deliberate: **no 3D, no fabricated player positions, no
 fake realism**. The brain understands motion better than numbers — so the
