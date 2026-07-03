@@ -74,6 +74,15 @@ comebacks, blown leads, late drama — across every ingested match:
   engine explains the moment. Honest by construction: every coordinate is
   provider truth or an interpolation between one player's own recorded
   positions; nothing on the pitch is invented.
+- **Future Simulation Engine** — from any minute, run 10,000 seeded
+  Monte-Carlo simulations of the *remaining* match (a horizon derived from the
+  match's real recorded duration — never a hardcoded 90) and see the outcome
+  distribution and **opportunity windows**: the lanes and time slices where
+  the next chance is most likely. Deterministic (the seed is shown) and
+  calibrated (the Monte-Carlo provably converges to the analytic Poisson from
+  the same validated rates).
+
+  ![Future Simulation — thousands of futures, bounded by the match's real remaining time](docs/images/app-future-sim.png)
 - **Match Story** — the narrated timeline: kick-off, goals in context, "the
   game changed" beats, momentum swings, full time. Click a beat to jump the
   replay there.

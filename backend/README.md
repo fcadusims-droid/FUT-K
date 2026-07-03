@@ -54,6 +54,9 @@ uvicorn app.main:app --reload
   fixture's facts (resolves it in the fusion layer's `fused_matches`)
 - `GET /matches/{id}/whatif?minute=&type=&team=` — What If?: remove one real
   event and re-run the engine (baseline vs counterfactual series)
+- `GET /matches/{id}/simulate?minute=&n_sims=&seed=` — Future Simulation
+  Engine: seeded Monte-Carlo projection of the remaining match (horizon from
+  the match's real duration), outcome distribution + opportunity windows
 - `GET /players/profiles?team=&archetype=&min_actions=` — player DNA profiles
 - `GET /fusion/records` — cross-provider fused match records with per-field
   provenance (populate with `python scripts/ingest_fused.py`)

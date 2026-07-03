@@ -56,9 +56,9 @@ deterministic and honest by construction:
 | **Decision Intelligence (first step)** — What If? counterfactuals: remove a real event, re-run the engine, compare readings | ✅ shipped | `/matches/{id}/whatif` |
 | **Visual Intelligence** — replay / TV / analysis layers, activity zones, pressure glow, AI ticker, explain-on-pause | ✅ shipped | the replay UI |
 | **Tactical assistant** — deterministic Q&A over the engine's reading | ✅ shipped (descriptive) | `/matches/{id}/ask` |
-| **Future Simulation Engine** — thousands of forward simulations from the current state ("an 8-second window on the left channel") | 🔭 next | the Monte-Carlo core exists (`scripts/run_monte_carlo.py`); needs a forward-state simulator |
+| **Future Simulation Engine** — thousands of seeded forward simulations from the current state, bounded by the match's real remaining time; outcome distribution + opportunity windows (lane + timing) | ✅ shipped | `fie/simulation.py`, `/matches/{id}/simulate` |
 | **Live mode** — the same twin fed by live multi-source feeds through the fusion layer | 🔭 next | fusion + event bus trigger documented in `docs/ARCHITECTURE.md` |
-| **Strategic assistant** — "which substitution raises win probability most?" | 🔭 later | needs the future-simulation engine first |
+| **Strategic assistant** — "which substitution raises win probability most?" | 🔭 later | the future-simulation engine it needs now exists |
 
 ## The reconstruction promise (and its honest boundary)
 
@@ -74,6 +74,18 @@ recorded positions, and a player with no recent data honestly disappears —
 FUT-K does not fabricate off-ball runs. Full 22-player continuity requires
 tracking data; the twin's architecture is ready for it, and the honesty rule
 (*nothing on this pitch is invented*) is non-negotiable either way.
+
+## Real time, never fake time
+
+A simulation of a historical match can only run as long as the match really
+ran. The horizon is **derived from data, not assumed**: the twin stream's last
+recorded second — validated across all 611 ingested matches (100% carry
+period/`Half End` markers; durations span 89.9–126.1 minutes, 19 with extra
+time; the stream's end agrees with the period marker to within ~3 seconds) —
+tells the engine exactly when the match ends. Simulate at minute 88 of a match
+that really ran to 95.8' and the engine projects **7.8 minutes**, not a
+hardcoded 90. Cross-provider agreement on the final score (the fusion layer)
+corroborates that the match completed. No fake time enters anywhere.
 
 ## Philosophy
 

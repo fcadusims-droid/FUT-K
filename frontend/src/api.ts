@@ -6,6 +6,7 @@ import type {
   MatchSummary,
   PanelState,
   PlayerProfile,
+  SimulationResult,
   StoryBeat,
   TwinStream,
   WhatIfPayload,
@@ -49,3 +50,8 @@ export const fetchTwinStream = (id: string) =>
 
 export const fetchCrossCheck = (id: string) =>
   get<CrossCheck>(`/matches/${id}/crosscheck`)
+
+export const fetchSimulation = (id: string, minute: number, seed = 0) =>
+  get<SimulationResult>(
+    `/matches/${id}/simulate?minute=${minute.toFixed(2)}&seed=${seed}`,
+  )

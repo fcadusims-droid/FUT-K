@@ -103,6 +103,29 @@ export interface CrossCheck {
   note?: string
 }
 
+export interface OpportunityWindow {
+  team: 'HOME' | 'AWAY'
+  lane: 'left' | 'central' | 'right'
+  probability: number
+  eta_seconds: number
+  window_seconds: number
+}
+
+export interface SimulationResult {
+  minute: number
+  horizon_minutes: number
+  n_sims: number
+  seed: number
+  real_duration: number
+  duration_source: string
+  lambda_per_min: { home: number; away: number }
+  goal_prob: { home: number; away: number; any: number }
+  expected_goals: { home: number; away: number }
+  scorelines: { score: string; prob: number }[]
+  opportunity_windows: OpportunityWindow[]
+  note: string
+}
+
 export interface WhatIfSeries {
   goal_next_10min: number[]
   next_goal_home: number[]
