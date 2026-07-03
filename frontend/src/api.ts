@@ -1,4 +1,5 @@
 import type {
+  CrossCheck,
   ExplainPayload,
   MatchDetail,
   MatchEvent2D,
@@ -6,6 +7,7 @@ import type {
   PanelState,
   PlayerProfile,
   StoryBeat,
+  TwinStream,
   WhatIfPayload,
 } from './types'
 
@@ -41,3 +43,9 @@ export const fetchWhatIf = (id: string, minute: number, type: string, team: stri
 
 export const fetchPlayerProfile = (playerId: string) =>
   get<PlayerProfile[]>(`/players/profiles?player_id=${playerId}`)
+
+export const fetchTwinStream = (id: string) =>
+  get<TwinStream>(`/matches/${id}/replay2d`)
+
+export const fetchCrossCheck = (id: string) =>
+  get<CrossCheck>(`/matches/${id}/crosscheck`)

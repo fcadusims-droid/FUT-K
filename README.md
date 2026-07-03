@@ -1,11 +1,14 @@
 # FUT-K
 
-**FUT-K** is a football intelligence app: pick a real match and watch an
-AI engine read it minute by minute — who controls the game, which regime the
-match is in, what is likely to happen next (with calibrated probabilities and
-an honest confidence), and *why*.
+**FUT-K is a Digital Football Twin** ([vision](./docs/VISION.md)): a living
+computational representation of a football match that reconstructs the past,
+understands the present, evaluates decisions (What If?), and turns tactical
+intelligence into a visual, interactive, explainable experience. Pick a real
+match and watch the engine read it minute by minute — who controls the game,
+what is likely to happen next (with calibrated probabilities and an honest
+confidence), and *why*.
 
-> *Don't predict scores — understand football.*
+> *"See the game beyond the game."*
 
 ![Match replay — plain-language panel and the narrated Match Story](docs/images/app-replay-panel.png)
 
@@ -14,12 +17,15 @@ Every number on that panel is recomputed live from the match's event stream
 leakage-free, and the claim is enforced by tests from the math core all the way
 up to the HTTP API.
 
-The **Replay Engine** turns that stream into a living 2D pitch — the ball
-gliding between the match's real recorded touchpoints, goals flashing where
-they actually happened, the engine's pressure reading glowing at each end,
-and a commentator line narrating as the clock runs at 0.25× to 32×:
+The **Digital Match Twin** turns that stream into a living 2D pitch: the ball
+follows every recorded pass, carry and shot — real locations, real sub-second
+timings, ~3,300 on-ball actions per match — while player dots glide between
+their own recorded touches, names appear as they act, goals flash where they
+actually happened, and a commentator line narrates as the clock runs the full
+90'+ (extra time included) at 0.25× to 32×. Facts are cross-checked against
+independent providers by the fusion layer (the ✓ chip):
 
-![Replay Engine — the living 2D pitch at the moment of a goal](docs/images/app-pitch-replay.png)
+![Digital Match Twin — the living 2D pitch, animated from real recorded actions](docs/images/app-pitch-replay.png)
 
 ## Quick start
 
@@ -61,11 +67,13 @@ comebacks, blown leads, late drama — across every ingested match:
   in the next 10 minutes is plausible (27%)." No jargon by default; the full
   technical panel (regimes, confidence, momentum, prediction meters) lives
   behind an **Analyst mode** toggle.
-- **Replay Engine** — the living 2D pitch: play any match at 0.25×–32×, in
-  standard, minimalist **TV** or **analysis** mode (activity zones, momentum
-  arrow, pressure glow), pause anywhere and ask **why?** — the engine explains
-  the moment. Honest by construction: the ball moves between real recorded
-  touchpoints; nothing on the pitch is invented.
+- **Digital Match Twin** — the living 2D pitch: the full match (90'+ and
+  extra time) animated from every recorded pass, carry and shot at 0.25×–32×,
+  in standard, minimalist **TV** or **analysis** mode (activity zones,
+  momentum arrow, pressure glow); pause anywhere and ask **why?** — the
+  engine explains the moment. Honest by construction: every coordinate is
+  provider truth or an interpolation between one player's own recorded
+  positions; nothing on the pitch is invented.
 - **Match Story** — the narrated timeline: kick-off, goals in context, "the
   game changed" beats, momentum swings, full time. Click a beat to jump the
   replay there.

@@ -199,6 +199,68 @@ def match_events(match_id: str, db: Session = Depends(get_db)) -> list[dict]:
     ]
 
 
+@app.get("/matches/{match_id}/replay2d")
+def replay2d(match_id: str, db: Session = Depends(get_db)) -> dict:
+    """The Digital Match Twin's dense on-ball stream.
+
+    Every pass, carry and shot with real start+end pitch locations, real
+    sub-second timestamps and durations, plus point actions (receipts,
+    recoveries, duels...). This is what the 2D pitch animates — provider
+    truth, not simulation. 404 when no stream exists and the raw cache is
+    unavailable; the UI then falls back to the sparse normalized events.
+    """
+    from .twin import get_stream
+
+    m = _get_match(db, match_id)
+    stream = get_stream(db, m)
+    if stream is None:
+        raise HTTPException(
+            status_code=404,
+            detail="no twin stream for this match (raw event cache unavailable)",
+        )
+    return stream
+
+
+@app.get("/matches/{match_id}/crosscheck")
+def crosscheck(match_id: str, db: Session = Depends(get_db)) -> dict:
+    """Multi-provider verification of this fixture's facts (the fusion layer).
+
+    Resolves the match in `fused_matches` by canonical (date, home, away) and
+    returns per-field agreement — the evidence that the reconstruction shown
+    in the replay matches independent providers.
+    """
+    from fie.fusion import normalize_entity
+
+    from .models import FusedMatchRecord
+
+    m = _get_match(db, match_id)
+    row = db.execute(
+        select(FusedMatchRecord).where(
+            FusedMatchRecord.match_date == (m.match_date or ""),
+            FusedMatchRecord.home_team == normalize_entity(m.home_team or ""),
+            FusedMatchRecord.away_team == normalize_entity(m.away_team or ""),
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return {"providers": 1, "verified": False,
+                "note": "no independent provider fused for this fixture yet"}
+    import json as _json
+
+    fields = _json.loads(row.fields_json)
+    agreed = sum(1 for f in fields.values() if f["agreed"] and f["sources"])
+    compared = sum(1 for f in fields.values()
+                   if len(f["sources"]) + len(f["dissent"]) >= 2)
+    return {
+        "providers": row.n_sources,
+        "sources": row.sources.split(","),
+        "verified": True,
+        "fields_compared": compared,
+        "fields_agreed": agreed,
+        "conflicts": row.conflicts.split(",") if row.conflicts else [],
+        "league": row.league,
+    }
+
+
 @app.get("/matches/{match_id}/whatif")
 def whatif_endpoint(
     match_id: str,

@@ -1,120 +1,233 @@
-// The Replay Engine's living pitch: a 2D map of the match, animated at the
-// display's frame rate. Honest by construction — the ball glides between the
-// match's REAL recorded touchpoints (shots, goals, corners, cards, fouls with
-// StatsBomb coordinates); team zones are computed from those same locations;
-// tint and arrows come from the engine's validated reading (pressure,
-// momentum). No player positions are invented: what you see is what the data
-// and the engine actually know.
+// The Digital Match Twin's living pitch (v2).
 //
-// Modes: standard (pitch + engine reading) · tv (just the pitch, minimalist
-// broadcast) · analysis (adds activity zones, pressure glow, commentary log).
+// When the dense twin stream is available, this animates the match as it
+// actually happened: the ball follows every recorded pass, carry and shot —
+// real start/end locations, real sub-second durations — and each player dot
+// glides between that player's OWN recorded touch locations. Nothing is
+// fabricated: every coordinate on screen is provider truth or an honest
+// interpolation between two of that entity's real recorded positions.
+//
+// Without the stream (no raw cache), it falls back to the sparse normalized
+// events — fewer touchpoints, same honesty.
+//
+// Modes: standard · tv (broadcast-minimal) · analysis (zones, momentum,
+// commentary log).
 
 import { useMemo, useState } from 'react'
 import { fetchExplain } from '../api'
 import { PlayerCard } from './PlayerCard'
-import type { ExplainPayload, MatchEvent2D, PanelState, StoryBeat } from '../types'
+import type {
+  ExplainPayload, MatchEvent2D, PanelState, StoryBeat, TwinItem,
+} from '../types'
 
 type Mode = 'standard' | 'tv' | 'analysis'
 
 interface Props {
   matchId: string
-  events: MatchEvent2D[]
+  events: MatchEvent2D[]           // sparse fallback + card pins
+  twin: TwinItem[] | null          // dense stream (null -> fallback mode)
   panel: PanelState
   story: StoryBeat[] | null
-  clock: number
+  clock: number                    // match minutes, continuous
   playing: boolean
   homeName: string
   awayName: string
 }
 
-interface Pt {
-  minute: number
-  x: number
-  y: number
-  type: string
-  team: 'HOME' | 'AWAY'
-  player_id: string | null
-  player: string | null
-}
+// ---------------------------------------------------------------------------
+// Geometry: engine 0-100 frame (acting team attacks left->right) -> display
+// 120x80 stadium frame where HOME always attacks right.
+const px = (x: number, team: string) => (team === 'AWAY' ? 120 - x * 1.2 : x * 1.2)
+const py = (y: number, team: string) => (team === 'AWAY' ? 80 - y * 0.8 : y * 0.8)
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+const clamp01 = (t: number) => Math.max(0, Math.min(1, t))
 
-// Engine coordinates are 0-100 x 0-100 in the acting team's own attacking
-// frame (left -> right). Display frame: a real-proportion 120x80 pitch where
-// HOME attacks right and AWAY events are mirrored to sit in the stadium frame.
-function toPitch(e: MatchEvent2D): { x: number; y: number } {
-  const x = Math.min(100, Math.max(0, e.x ?? 50)) * 1.2
-  const y = Math.min(100, Math.max(0, e.y ?? 50)) * 0.8
-  return e.team === 'AWAY' ? { x: 120 - x, y: 80 - y } : { x, y }
-}
+interface Seg { t0: number; t1: number; x0: number; y0: number; x1: number; y1: number
+                type: string; team: string; player: string | null; outcome?: string }
+interface Track { t: number; x: number; y: number }
 
-const smooth = (t: number) => t * t * (3 - 2 * t) // smoothstep ease
+function lastIndexLE(arr: { t0?: number; t?: number }[], t: number): number {
+  let lo = 0, hi = arr.length - 1, ans = -1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    const v = (arr[mid] as { t0?: number; t?: number })
+    if ((v.t0 ?? v.t ?? 0) <= t) { ans = mid; lo = mid + 1 } else hi = mid - 1
+  }
+  return ans
+}
 
 export function PitchReplay({
-  matchId, events, panel, story, clock, playing, homeName, awayName,
+  matchId, events, twin, panel, story, clock, playing, homeName, awayName,
 }: Props) {
   const [mode, setMode] = useState<Mode>('standard')
   const [why, setWhy] = useState<ExplainPayload | null>(null)
   const [whyBusy, setWhyBusy] = useState(false)
   const [selected, setSelected] = useState<{ id: string; name: string | null } | null>(null)
 
-  const located: Pt[] = useMemo(
-    () =>
-      events
-        .filter((e) => e.x !== null && e.y !== null)
-        .map((e) => ({ minute: e.minute, type: e.type, team: e.team,
-                       player_id: e.player_id, player: e.player, ...toPitch(e) }))
-        .sort((a, b) => a.minute - b.minute),
-    [events],
-  )
+  const T = clock * 60 // seconds on the match clock
 
-  const pickPlayer = (p: Pt) => {
-    if (p.player_id) setSelected({ id: p.player_id, name: p.player })
-  }
-
-  // Ball position: interpolate between the two real touchpoints around the
-  // clock. Between touches the true path is unknown — the glide is a visual
-  // reconstruction between known points, never invented data.
-  const ball = useMemo(() => {
-    if (located.length === 0) return { x: 60, y: 40 }
-    if (clock <= located[0].minute) return { x: 60, y: 40 }
-    let prev = located[0]
-    for (const p of located) {
-      if (p.minute > clock) {
-        const span = p.minute - prev.minute
-        const t = span > 0 ? smooth(Math.min(1, (clock - prev.minute) / span)) : 1
-        return { x: prev.x + (p.x - prev.x) * t, y: prev.y + (p.y - prev.y) * t }
-      }
-      prev = p
+  // ----- dense mode precomputation ----------------------------------------
+  const segs: Seg[] = useMemo(() => {
+    if (!twin) return []
+    const out: Seg[] = []
+    for (const it of twin) {
+      if (it.x == null || it.y == null || it.x2 == null || it.y2 == null) continue
+      const dur = Math.max(it.dur ?? 0, 0.25)
+      out.push({
+        t0: it.t, t1: it.t + dur,
+        x0: px(it.x, it.team), y0: py(it.y, it.team),
+        x1: px(it.x2, it.team), y1: py(it.y2, it.team),
+        type: it.type, team: it.team, player: it.player, outcome: it.outcome,
+      })
     }
-    return { x: prev.x, y: prev.y }
-  }, [located, clock])
+    return out
+  }, [twin])
 
-  // Event pings: brief expanding ring where something just happened.
-  const pings = located.filter((p) => p.minute <= clock && p.minute > clock - 1.2)
-  const goalFlash = located.find(
-    (p) => p.type === 'goal' && p.minute <= clock && p.minute > clock - 1.6,
+  const tracks = useMemo(() => {
+    if (!twin) return new Map<string, { name: string; team: string; pts: Track[] }>()
+    const map = new Map<string, { name: string; team: string; pts: Track[] }>()
+    for (const it of twin) {
+      if (!it.player_id || it.x == null || it.y == null) continue
+      let tr = map.get(it.player_id)
+      if (!tr) {
+        tr = { name: it.player ?? it.player_id, team: it.team, pts: [] }
+        map.set(it.player_id, tr)
+      }
+      tr.pts.push({ t: it.t, x: px(it.x, it.team), y: py(it.y, it.team) })
+      if (it.x2 != null && it.y2 != null && it.type === 'Carry') {
+        tr.pts.push({ t: it.t + Math.max(it.dur ?? 0, 0.25),
+                      x: px(it.x2, it.team), y: py(it.y2, it.team) })
+      }
+    }
+    for (const tr of map.values()) tr.pts.sort((a, b) => a.t - b.t)
+    return map
+  }, [twin])
+
+  // Ball position at time t (seconds), from the real segments.
+  const ballAt = useMemo(() => {
+    return (t: number): { x: number; y: number; seg: Seg | null } => {
+      if (!segs.length) return { x: 60, y: 40, seg: null }
+      const i = lastIndexLE(segs, t)
+      if (i < 0) return { x: segs[0].x0, y: segs[0].y0, seg: null }
+      const s = segs[i]
+      if (t <= s.t1) {
+        const f = clamp01((t - s.t0) / (s.t1 - s.t0))
+        return { x: lerp(s.x0, s.x1, f), y: lerp(s.y0, s.y1, f), seg: s }
+      }
+      const next = segs[i + 1]
+      if (next) {
+        const gap = next.t0 - s.t1
+        if (gap > 0 && gap <= 2.5) {
+          const f = clamp01((t - s.t1) / gap)
+          return { x: lerp(s.x1, next.x0, f), y: lerp(s.y1, next.y0, f), seg: null }
+        }
+      }
+      return { x: s.x1, y: s.y1, seg: null }
+    }
+  }, [segs])
+
+  const ball = ballAt(T)
+
+  // Trail: the ball's real path over the last ~1.6 s.
+  const trail = useMemo(() => {
+    if (!segs.length) return []
+    const pts: { x: number; y: number }[] = []
+    for (let k = 6; k >= 1; k--) {
+      const p = ballAt(T - k * 0.26)
+      pts.push({ x: p.x, y: p.y })
+    }
+    return pts
+  }, [ballAt, T, segs.length])
+
+  // Player dots: interpolate each player between their own recorded touches.
+  const dots = useMemo(() => {
+    const out: { id: string; name: string; team: string; x: number; y: number
+                 recent: number }[] = []
+    for (const [id, tr] of tracks) {
+      const i = lastIndexLE(tr.pts, T)
+      if (i < 0) continue
+      const a = tr.pts[i]
+      const age = T - a.t
+      const b = tr.pts[i + 1]
+      let x = a.x, y = a.y
+      if (b && b.t - a.t <= 180) {
+        // drift toward the player's next real recorded position (covers
+        // goal celebrations and restarts without inventing anything)
+        const f = clamp01((T - a.t) / Math.max(0.001, b.t - a.t))
+        x = lerp(a.x, b.x, f); y = lerp(a.y, b.y, f)
+      } else if (age > 90) {
+        continue // no recent knowledge of this player -> honestly absent
+      }
+      out.push({ id, name: tr.name, team: tr.team, x, y, recent: age })
+    }
+    return out
+  }, [tracks, T])
+
+  const carrier = ball.seg?.player ?? null
+
+  // Sparse fallback (no twin stream): v1 behavior over normalized events.
+  const sparse = useMemo(() => {
+    if (twin) return null
+    const located = events
+      .filter((e) => e.x !== null && e.y !== null)
+      .map((e) => ({
+        minute: e.minute, type: e.type, team: e.team,
+        player_id: e.player_id, player: e.player,
+        x: px(Math.min(100, e.x as number), e.team) ,
+        y: py(Math.min(100, e.y as number), e.team),
+      }))
+      .sort((a, b) => a.minute - b.minute)
+    let prev = located[0]
+    let pos = { x: 60, y: 40 }
+    if (located.length && clock > located[0].minute) {
+      for (const p of located) {
+        if (p.minute > clock) {
+          const span = p.minute - prev.minute
+          const f = span > 0 ? clamp01((clock - prev.minute) / span) : 1
+          pos = { x: lerp(prev.x, p.x, f), y: lerp(prev.y, p.y, f) }
+          break
+        }
+        prev = p
+        pos = { x: p.x, y: p.y }
+      }
+    }
+    return { located, pos }
+  }, [twin, events, clock])
+
+  // Cards + goal flash come from the normalized events in both modes.
+  const cardPins = events.filter(
+    (e) => (e.type === 'yellow_card' || e.type === 'red_card')
+      && e.x !== null && e.minute <= clock && e.minute > clock - 3,
   )
-  // Cards stay pinned a little longer so the eye can find them.
-  const cardPins = located.filter(
-    (p) => (p.type === 'yellow_card' || p.type === 'red_card')
-      && p.minute <= clock && p.minute > clock - 3,
+  const goalEvent = events.find(
+    (e) => e.type === 'goal' && e.minute <= clock && e.minute > clock - 1.4,
   )
 
-  // Activity zones (analysis): where each team's real events concentrated in
-  // the trailing 12 minutes — an honest footprint, not a formation guess.
+  // Activity zones (analysis) from whatever positional truth we have.
   const zones = useMemo(() => {
     if (mode !== 'analysis') return null
-    const win = located.filter((p) => p.minute <= clock && p.minute > clock - 12)
-    const zone = (team: 'HOME' | 'AWAY') => {
+    const win: { team: string; x: number; y: number }[] = []
+    if (twin) {
+      const i0 = lastIndexLE(twin as { t: number }[], T - 12 * 60)
+      const i1 = lastIndexLE(twin as { t: number }[], T)
+      for (let i = Math.max(0, i0); i <= i1; i++) {
+        const it = twin[i]
+        if (it.x == null || it.y == null) continue
+        win.push({ team: it.team, x: px(it.x, it.team), y: py(it.y, it.team) })
+      }
+    }
+    const zone = (team: string) => {
       const pts = win.filter((p) => p.team === team)
-      if (pts.length < 3) return null
+      if (pts.length < 8) return null
       const mx = pts.reduce((s, p) => s + p.x, 0) / pts.length
       const my = pts.reduce((s, p) => s + p.y, 0) / pts.length
       const sx = Math.sqrt(pts.reduce((s, p) => s + (p.x - mx) ** 2, 0) / pts.length)
       const sy = Math.sqrt(pts.reduce((s, p) => s + (p.y - my) ** 2, 0) / pts.length)
-      return { cx: mx, cy: my, rx: Math.min(30, Math.max(6, sx * 1.5)), ry: Math.min(22, Math.max(5, sy * 1.5)) }
+      return { cx: mx, cy: my, rx: Math.min(32, Math.max(8, sx * 1.4)),
+               ry: Math.min(24, Math.max(6, sy * 1.4)) }
     }
     return { home: zone('HOME'), away: zone('AWAY') }
-  }, [located, clock, mode])
+  }, [mode, twin, T])
 
   const beat = useMemo(() => {
     if (!story) return null
@@ -123,19 +236,18 @@ export function PitchReplay({
     return last
   }, [story, clock])
 
-  // The player behind the most recent touchpoint — click-through to Player DNA.
-  const lastTouch = useMemo(() => {
-    let last: Pt | null = null
-    for (const p of located) {
-      if (p.minute > clock) break
-      if (p.player_id) last = p
-    }
-    return last
-  }, [located, clock])
-
   const mm = Math.floor(clock)
   const ss = Math.floor((clock - mm) * 60)
   const momentumDelta = panel.momentum.home - panel.momentum.away
+
+  // HUD score straight from the goal events <= clock, so the scoreboard flips
+  // at the exact second of the goal flash (the per-minute panel lags by design).
+  const liveScore = useMemo(() => ({
+    home: events.filter((e) => e.type === 'goal' && e.team === 'HOME'
+                               && e.minute <= clock).length,
+    away: events.filter((e) => e.type === 'goal' && e.team === 'AWAY'
+                               && e.minute <= clock).length,
+  }), [events, clock])
 
   const askWhy = () => {
     setWhyBusy(true)
@@ -145,30 +257,42 @@ export function PitchReplay({
       .finally(() => setWhyBusy(false))
   }
 
+  const shortName = (n: string) => {
+    const parts = n.split(' ')
+    return parts.length > 1 ? parts[parts.length - 1] : n
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 6 }}>
-        <strong style={{ fontSize: 18, fontVariantNumeric: 'tabular-nums' }}>
-          <span style={{ color: 'var(--home)' }}>{homeName}</span>
-          {' '}{panel.score.home}–{panel.score.away}{' '}
-          <span style={{ color: 'var(--away)' }}>{awayName}</span>
-        </strong>
-        <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-secondary)' }}>
-          {mm}:{String(ss).padStart(2, '0')}
+      {/* scoreboard — broadcast chip */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 8,
+                    flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', gap: 8, alignItems: 'baseline',
+                       padding: '4px 12px', borderRadius: 8,
+                       background: 'var(--surface-1)',
+                       border: '1px solid var(--border)',
+                       boxShadow: '0 1px 3px rgba(0,0,0,.12)' }}>
+          <strong style={{ color: 'var(--home)' }}>{homeName}</strong>
+          <strong style={{ fontSize: 18, fontVariantNumeric: 'tabular-nums' }}>
+            {liveScore.home}–{liveScore.away}
+          </strong>
+          <strong style={{ color: 'var(--away)' }}>{awayName}</strong>
+          <span style={{ fontVariantNumeric: 'tabular-nums',
+                         color: 'var(--text-secondary)', marginLeft: 4 }}>
+            {mm}:{String(ss).padStart(2, '0')}
+          </span>
         </span>
         {mode !== 'tv' && (
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
             goal in 10&apos;: {Math.round(panel.predictions.goal_next_10min * 100)}%
             {mode === 'analysis' ? ` · ${panel.regime}` : ''}
+            {twin ? '' : ' · sparse mode'}
           </span>
         )}
         <span style={{ flex: 1 }} />
         {(['standard', 'tv', 'analysis'] as Mode[]).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            style={m === mode ? { borderColor: 'var(--seq-450)' } : undefined}
-          >
+          <button key={m} onClick={() => setMode(m)}
+                  style={m === mode ? { borderColor: 'var(--seq-450)' } : undefined}>
             {m === 'tv' ? 'TV' : m}
           </button>
         ))}
@@ -179,102 +303,160 @@ export function PitchReplay({
         )}
       </div>
 
-      <svg viewBox="0 0 120 80" style={{ width: '100%', display: 'block', borderRadius: 6 }}
+      <svg viewBox="-2 -2 124 84" style={{ width: '100%', display: 'block',
+           borderRadius: 8, boxShadow: '0 2px 10px rgba(0,0,0,.18)' }}
            role="img" aria-label="2D pitch replay">
-        {/* turf + markings */}
-        <rect x="0" y="0" width="120" height="80" fill="var(--surface-1)" />
-        <rect x="0.6" y="0.6" width="118.8" height="78.8" fill="none"
-              stroke="var(--baseline)" strokeWidth="0.4" />
-        <line x1="60" y1="0.6" x2="60" y2="79.4" stroke="var(--gridline)" strokeWidth="0.4" />
-        <circle cx="60" cy="40" r="9.15" fill="none" stroke="var(--gridline)" strokeWidth="0.4" />
-        {/* penalty boxes + goals */}
-        {[0, 1].map((side) => {
-          const x = side === 0 ? 0.6 : 119.4
-          const dir = side === 0 ? 1 : -1
+        <defs>
+          <radialGradient id="turfGlow" cx="50%" cy="50%" r="75%">
+            <stop offset="0%" stopColor="#478d58" />
+            <stop offset="100%" stopColor="#3a7448" />
+          </radialGradient>
+          <filter id="dotShadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0.35" stdDeviation="0.35"
+                          floodColor="#000" floodOpacity="0.45" />
+          </filter>
+        </defs>
+
+        {/* turf + mowing stripes */}
+        <rect x="-2" y="-2" width="124" height="84" rx="2" fill="url(#turfGlow)" />
+        {Array.from({ length: 6 }, (_, i) => (
+          <rect key={i} x={i * 20} y="0" width="10" height="80"
+                fill="#ffffff" opacity="0.05" />
+        ))}
+
+        {/* markings */}
+        <g stroke="#ffffff" strokeOpacity="0.85" strokeWidth="0.35" fill="none">
+          <rect x="0" y="0" width="120" height="80" />
+          <line x1="60" y1="0" x2="60" y2="80" />
+          <circle cx="60" cy="40" r="9.15" />
+          <circle cx="60" cy="40" r="0.5" fill="#fff" stroke="none" />
+          {[0, 1].map((side) => {
+            const sgn = side === 0 ? 1 : -1
+            const gx = side === 0 ? 0 : 120
+            return (
+              <g key={side}>
+                <rect x={side === 0 ? 0 : 120 - 18} y={40 - 20.16} width="18" height="40.32" />
+                <rect x={side === 0 ? 0 : 120 - 6} y={40 - 9.16} width="6" height="18.32" />
+                <circle cx={gx + sgn * 12} cy="40" r="0.5" fill="#fff" stroke="none" />
+                <path d={`M ${gx + sgn * 18} ${40 - 7.31} A 9.15 9.15 0 0 ${side === 0 ? 1 : 0} ${gx + sgn * 18} ${40 + 7.31}`} />
+                <path d={`M ${gx} ${side === 0 ? 2 : 78} A 2 2 0 0 ${side === 0 ? 1 : 0} ${gx + sgn * 2} ${side === 0 ? 0 : 80}`}
+                      transform={side === 0 ? '' : ''} opacity="0.7" />
+                <rect x={side === 0 ? -1.4 : 120} y={40 - 3.66} width="1.4" height="7.32"
+                      fill="#ffffff" fillOpacity="0.9" stroke="none" />
+              </g>
+            )
+          })}
+        </g>
+
+        {/* pressure glow at each end (engine reading) */}
+        {mode !== 'tv' && (
+          <>
+            <rect x="96" y="0" width="24" height="80" fill="var(--home)"
+                  opacity={Math.min(0.22, panel.pressure.home * 0.22)} />
+            <rect x="0" y="0" width="24" height="80" fill="var(--away)"
+                  opacity={Math.min(0.22, panel.pressure.away * 0.22)} />
+          </>
+        )}
+
+        {/* activity zones (analysis) */}
+        {zones?.home && (
+          <ellipse cx={zones.home.cx} cy={zones.home.cy} rx={zones.home.rx}
+                   ry={zones.home.ry} fill="var(--home)" opacity="0.18"
+                   stroke="var(--home)" strokeWidth="0.3" />
+        )}
+        {zones?.away && (
+          <ellipse cx={zones.away.cx} cy={zones.away.cy} rx={zones.away.rx}
+                   ry={zones.away.ry} fill="#ffffff" opacity="0.22"
+                   stroke="#ffffff" strokeWidth="0.3" />
+        )}
+
+        {/* momentum arrow (analysis) */}
+        {mode === 'analysis' && Math.abs(momentumDelta) > 0.05 && (
+          <g opacity="0.85">
+            <line x1={60 - momentumDelta * 22} y1="3.5" x2={60 + momentumDelta * 22} y2="3.5"
+                  stroke="#ffffff" strokeWidth="1" />
+            <path d={momentumDelta > 0
+              ? `M ${60 + momentumDelta * 22} 3.5 l -2.2 -1.3 v 2.6 z`
+              : `M ${60 + momentumDelta * 22} 3.5 l 2.2 -1.3 v 2.6 z`}
+              fill="#ffffff" />
+          </g>
+        )}
+
+        {/* live pass line while the ball is in flight */}
+        {ball.seg && ball.seg.type !== 'Carry' && (
+          <line x1={ball.seg.x0} y1={ball.seg.y0} x2={ball.x} y2={ball.y}
+                stroke="#ffffff" strokeWidth="0.35" strokeDasharray="1.2 0.9"
+                opacity="0.8" />
+        )}
+
+        {/* ball trail */}
+        {trail.length > 1 && (
+          <polyline
+            points={trail.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}
+            fill="none" stroke="#ffffff" strokeWidth="0.5" strokeLinecap="round"
+            opacity="0.35" />
+        )}
+
+        {/* player dots — each glides between its own recorded touches */}
+        {dots.map((d) => {
+          const isHome = d.team === 'HOME'
+          const isCarrier = carrier != null && d.name === carrier
+          const faded = Math.max(0.45, 1 - d.recent / 60)
           return (
-            <g key={side} stroke="var(--gridline)" strokeWidth="0.4" fill="none">
-              <rect x={side === 0 ? 0.6 : 119.4 - 18} y={40 - 20.16} width="18" height="40.32" />
-              <rect x={side === 0 ? 0.6 : 119.4 - 6} y={40 - 9.16} width="6" height="18.32" />
-              <circle cx={x + dir * 12} cy="40" r="0.5" fill="var(--gridline)" stroke="none" />
-              <rect x={side === 0 ? 0 : 119.4} y={40 - 3.66} width="0.6" height="7.32"
-                    fill="var(--baseline)" stroke="none" />
+            <g key={d.id} onClick={() => setSelected({ id: d.id, name: d.name })}
+               style={{ cursor: 'pointer' }} opacity={faded} filter="url(#dotShadow)">
+              <circle cx={d.x} cy={d.y} r={isCarrier ? 1.7 : 1.35}
+                      fill={isHome ? 'var(--home)' : '#f3f4f2'}
+                      stroke={isHome ? '#ffffff' : '#20242a'}
+                      strokeWidth={isCarrier ? 0.4 : 0.28} />
+              {mode !== 'tv' && d.recent < 6 && (
+                <text x={d.x} y={d.y - 2.2} textAnchor="middle" fontSize="2.6"
+                      fontWeight="700" fill="#ffffff" stroke="#1c3a26"
+                      strokeWidth="0.35" paintOrder="stroke">
+                  {shortName(d.name)}
+                </text>
+              )}
             </g>
           )
         })}
 
-        {/* pressure glow at each end (the engine's reading, not a guess) */}
-        {mode !== 'tv' && (
-          <>
-            <rect x="96" y="0.6" width="23.4" height="78.8" fill="var(--home)"
-                  opacity={Math.min(0.28, panel.pressure.home * 0.28)} />
-            <rect x="0.6" y="0.6" width="23.4" height="78.8" fill="var(--away)"
-                  opacity={Math.min(0.28, panel.pressure.away * 0.28)} />
-          </>
-        )}
-
-        {/* activity zones from real event locations (analysis) */}
-        {zones?.home && (
-          <ellipse cx={zones.home.cx} cy={zones.home.cy} rx={zones.home.rx} ry={zones.home.ry}
-                   fill="var(--home)" opacity="0.16" stroke="var(--home)" strokeWidth="0.3" />
-        )}
-        {zones?.away && (
-          <ellipse cx={zones.away.cx} cy={zones.away.cy} rx={zones.away.rx} ry={zones.away.ry}
-                   fill="var(--away)" opacity="0.16" stroke="var(--away)" strokeWidth="0.3" />
-        )}
-
-        {/* momentum arrow (analysis): who is pushing, and how hard */}
-        {mode === 'analysis' && Math.abs(momentumDelta) > 0.05 && (
-          <g opacity="0.75">
-            <line x1={60 - momentumDelta * 22} y1="4" x2={60 + momentumDelta * 22} y2="4"
-                  stroke={momentumDelta > 0 ? 'var(--home)' : 'var(--away)'} strokeWidth="1.1" />
-            <path
-              d={momentumDelta > 0
-                ? `M ${60 + momentumDelta * 22} 4 l -2.2 -1.4 v 2.8 z`
-                : `M ${60 + momentumDelta * 22} 4 l 2.2 -1.4 v 2.8 z`}
-              fill={momentumDelta > 0 ? 'var(--home)' : 'var(--away)'}
-            />
-          </g>
-        )}
-
-        {/* event pings — something real just happened here; click for the player */}
-        {pings.map((p, i) => (
-          <g key={`${p.minute}-${i}`} onClick={() => pickPlayer(p)}
-             style={p.player_id ? { cursor: 'pointer' } : undefined}>
-            <circle cx={p.x} cy={p.y} r={1.2 + (clock - p.minute) * 3.4}
-                    fill="none" stroke={p.team === 'HOME' ? 'var(--home)' : 'var(--away)'}
-                    strokeWidth="0.5" opacity={Math.max(0, 1 - (clock - p.minute) / 1.2)} />
-            {p.type !== 'foul' && (
-              <circle cx={p.x} cy={p.y} r="0.9"
-                      fill={p.team === 'HOME' ? 'var(--home)' : 'var(--away)'} />
-            )}
-          </g>
-        ))}
+        {/* sparse-mode pins (fallback when no twin stream) */}
+        {sparse && sparse.located
+          .filter((p) => p.minute <= clock && p.minute > clock - 1.2)
+          .map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="1"
+                    fill={p.team === 'HOME' ? 'var(--home)' : '#f3f4f2'} />
+          ))}
 
         {/* card pins */}
         {cardPins.map((p, i) => (
-          <rect key={`card-${i}`} x={p.x - 0.9} y={p.y - 1.3} width="1.8" height="2.6" rx="0.3"
+          <rect key={`card-${i}`}
+                x={px(Math.min(100, p.x as number), p.team) - 0.9}
+                y={py(Math.min(100, p.y as number), p.team) - 1.3}
+                width="1.8" height="2.6" rx="0.3"
                 fill={p.type === 'red_card' ? '#d33' : '#e6c229'}
-                stroke="var(--text-primary)" strokeWidth="0.15"
-                transform={`rotate(8 ${p.x} ${p.y})`}
-                onClick={() => pickPlayer(p)}
-                style={p.player_id ? { cursor: 'pointer' } : undefined} />
+                stroke="#20242a" strokeWidth="0.15" />
         ))}
 
-        {/* the ball — gliding between real touchpoints */}
-        <circle cx={ball.x} cy={ball.y} r="1.5" fill="var(--text-primary)"
-                stroke="var(--surface-1)" strokeWidth="0.4" />
+        {/* the ball */}
+        <circle cx={sparse ? sparse.pos.x : ball.x} cy={sparse ? sparse.pos.y : ball.y}
+                r="1.1" fill="#ffffff" stroke="#20242a" strokeWidth="0.3"
+                filter="url(#dotShadow)" />
 
         {/* goal flash */}
-        {goalFlash && (
-          <text x="60" y="42" textAnchor="middle" fontSize="7" fontWeight="800"
-                fill={goalFlash.team === 'HOME' ? 'var(--home)' : 'var(--away)'}
-                opacity={Math.max(0, 1 - (clock - goalFlash.minute) / 1.6)}>
-            GOAL {goalFlash.team === 'HOME' ? homeName : awayName}
-          </text>
+        {goalEvent && (
+          <g opacity={Math.max(0, 1 - (clock - goalEvent.minute) / 1.4)}>
+            <rect x="0" y="0" width="120" height="80" fill="#ffffff" opacity="0.12" />
+            <text x="60" y="41.5" textAnchor="middle" fontSize="8" fontWeight="800"
+                  fill={goalEvent.team === 'HOME' ? 'var(--home)' : '#ffffff'}
+                  stroke="#173322" strokeWidth="0.5" paintOrder="stroke">
+              GOAL {goalEvent.team === 'HOME' ? homeName : awayName}
+            </text>
+          </g>
         )}
       </svg>
 
-      {/* commentator ticker: the engine narrating as the clock passes */}
+      {/* commentator ticker */}
       {mode !== 'tv' && beat && (
         <div style={{ marginTop: 8, fontSize: 14 }}>
           <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
@@ -284,31 +466,15 @@ export function PitchReplay({
           <span style={{ color: 'var(--text-secondary)' }}>{beat.detail}</span>
         </div>
       )}
-      {mode !== 'tv' && lastTouch && (
-        <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-          last touch:{' '}
-          <button
-            onClick={() => pickPlayer(lastTouch)}
-            style={{ fontSize: 12, padding: '0 8px' }}
-          >
-            {Math.floor(lastTouch.minute)}&#39; {lastTouch.type.replace('_', ' ')} —{' '}
-            {lastTouch.player ?? `player ${lastTouch.player_id}`}
-          </button>{' '}
-          <span style={{ color: 'var(--text-muted)' }}>(click for Player DNA)</span>
-        </div>
-      )}
-
-      {selected && (
-        <PlayerCard
-          playerId={selected.id}
-          playerName={selected.name}
-          onClose={() => setSelected(null)}
-        />
-      )}
       {mode === 'analysis' && (
         <div style={{ marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
           {panel.explanation.claim}
         </div>
+      )}
+
+      {selected && (
+        <PlayerCard playerId={selected.id} playerName={selected.name}
+                    onClose={() => setSelected(null)} />
       )}
 
       {why && !playing && (
@@ -328,9 +494,9 @@ export function PitchReplay({
       )}
 
       <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-        Ball path reconstructed between {located.length} real recorded touchpoints;
-        zones and tints computed from real event locations and the engine&apos;s
-        validated reading. Nothing on this pitch is invented.
+        {twin
+          ? `Animating ${twin.length.toLocaleString()} real on-ball actions — every pass, carry and shot with its recorded location and sub-second timing. Player dots interpolate only between their own recorded touches; players without recent data honestly disappear. Nothing on this pitch is invented.`
+          : `Sparse mode: ball path reconstructed between ${events.filter((e) => e.x !== null).length} real recorded touchpoints. Nothing on this pitch is invented.`}
       </div>
     </div>
   )

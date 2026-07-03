@@ -62,6 +62,14 @@ class FutK:
         """The narrated Match Story."""
         return self._get(f"/matches/{match_id}/story")
 
+    def replay2d(self, match_id: str) -> dict:
+        """The Digital Match Twin's dense on-ball stream (real trajectories)."""
+        return self._get(f"/matches/{match_id}/replay2d")
+
+    def crosscheck(self, match_id: str) -> dict:
+        """Multi-provider verification of this fixture's facts."""
+        return self._get(f"/matches/{match_id}/crosscheck")
+
     def events(self, match_id: str) -> list:
         """Normalized events with real pitch coordinates (2D replay data)."""
         return self._get(f"/matches/{match_id}/events")

@@ -1,5 +1,7 @@
 # FUT-K — Product definition
 
+> North star: the **Digital Football Twin** — see [`docs/VISION.md`](../VISION.md).
+
 ## Identity
 
 **FUT-K is the match intelligence terminal** — the Bloomberg Terminal of

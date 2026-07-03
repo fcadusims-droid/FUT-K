@@ -40,7 +40,8 @@ const twins = await fk.similar('7525')
 | Product name | Endpoint |
 |---|---|
 | match | `GET /matches`, `GET /matches/{id}` |
-| replay 2D | `GET /matches/{id}/events` (located events for the pitch replay) |
+| replay 2D | `GET /matches/{id}/events` (located events) · `GET /matches/{id}/replay2d` (dense twin stream) |
+| cross-check | `GET /matches/{id}/crosscheck` (multi-provider fact verification) |
 | prediction | `GET /matches/{id}/state?minute=` |
 | narrative | `GET /matches/{id}/story`, `GET /matches/{id}/state/human` |
 | explain | `GET /matches/{id}/explain?minute=` |

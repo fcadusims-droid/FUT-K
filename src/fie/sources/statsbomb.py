@@ -295,6 +295,64 @@ def match_dict_from_statsbomb(raw_match, raw_events):
     }
 
 
+# On-ball action types that move or touch the ball — the Digital Match Twin's
+# raw material. Everything else (pressure, positioning noise) is skipped.
+_STREAM_SEGMENTS = {"Pass", "Carry", "Shot"}          # have an end_location
+_STREAM_POINTS = {"Ball Receipt*", "Ball Recovery", "Dribble", "Clearance",
+                  "Interception", "Block", "Duel", "Goal Keeper",
+                  "Foul Committed", "Miscontrol"}
+
+
+def ball_stream(raw_events, home_team):
+    """The match reconstructed as a dense, timed on-ball stream.
+
+    Every pass, carry and shot in the raw feed carries a real start location,
+    end location, sub-second timestamp and duration; point actions (receipts,
+    recoveries, duels, ...) carry a location. This function normalizes them to
+    one chronological stream — the truth the 2D twin animates. Nothing is
+    interpolated here: every coordinate and time is StatsBomb's record of what
+    actually happened on the pitch.
+
+    Output items (engine 0-100 frame, acting team's attacking direction):
+        {"t": seconds, "type", "team": HOME/AWAY, "player", "player_id",
+         "x", "y"} + for segments: {"x2", "y2", "dur": seconds}
+    Sorted by t; deterministic.
+    """
+    out = []
+    for e in raw_events:
+        etype = e.get("type", {}).get("name")
+        loc = e.get("location")
+        if not loc or (etype not in _STREAM_SEGMENTS
+                       and etype not in _STREAM_POINTS):
+            continue
+        t = float(e.get("minute", 0)) * 60.0 + float(e.get("second", 0))
+        x, y = _rescale(loc)
+        player = e.get("player") or {}
+        item = {
+            "t": round(t, 2),
+            "type": etype,
+            "team": "HOME" if e.get("team", {}).get("name") == home_team else "AWAY",
+            "player": player.get("name"),
+            "player_id": str(player["id"]) if player.get("id") is not None else None,
+            "x": round(x, 2) if x is not None else None,
+            "y": round(y, 2) if y is not None else None,
+        }
+        if etype in _STREAM_SEGMENTS:
+            detail = e.get(etype.lower(), {})
+            end = detail.get("end_location")
+            if end:
+                x2, y2 = _rescale(end)
+                item["x2"] = round(x2, 2) if x2 is not None else None
+                item["y2"] = round(y2, 2) if y2 is not None else None
+            item["dur"] = round(float(e.get("duration") or 0.0), 3)
+            if etype == "Shot":
+                outcome = detail.get("outcome", {}).get("name")
+                item["outcome"] = outcome
+        out.append(item)
+    out.sort(key=lambda i: (i["t"], i["type"]))
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Live download helpers (used by the ingestion script, never by CI tests)
 # --------------------------------------------------------------------------- #

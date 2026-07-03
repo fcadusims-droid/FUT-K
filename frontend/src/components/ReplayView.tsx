@@ -5,9 +5,14 @@
 // hover (a11y rule).
 
 import { useEffect, useMemo, useState } from 'react'
-import { fetchEvents, fetchMatchDetail, fetchStory, fetchTimeline } from '../api'
+import {
+  fetchCrossCheck, fetchEvents, fetchMatchDetail, fetchStory, fetchTimeline,
+  fetchTwinStream,
+} from '../api'
 import { competitionLabel } from '../competitions'
-import type { MatchDetail, MatchEvent2D, PanelState, StoryBeat } from '../types'
+import type {
+  CrossCheck, MatchDetail, MatchEvent2D, PanelState, StoryBeat, TwinItem,
+} from '../types'
 import { AskBox } from './AskBox'
 import { MiniCurves } from './MiniCurves'
 import { PitchReplay } from './PitchReplay'
@@ -29,6 +34,8 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
   const [detail, setDetail] = useState<MatchDetail | null>(null)
   const [timeline, setTimeline] = useState<PanelState[]>([])
   const [events2d, setEvents2d] = useState<MatchEvent2D[]>([])
+  const [twin, setTwin] = useState<TwinItem[] | null>(null)
+  const [check, setCheck] = useState<CrossCheck | null>(null)
   const [clock, setClock] = useState(1)
   const [speed, setSpeed] = useState(1)
   const [playing, setPlaying] = useState(false)
@@ -39,10 +46,15 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
   const [showNetwork, setShowNetwork] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const duration = detail?.duration ?? 90
+  // Full match including stoppage/extra time: the twin stream's last second
+  // is the truth about how long the match really ran.
+  const twinEnd = twin?.length ? twin[twin.length - 1].t / 60 : 0
+  const duration = Math.max(detail?.duration ?? 90, Math.ceil(twinEnd))
 
   useEffect(() => {
     let alive = true
+    setTwin(null)
+    setCheck(null)
     Promise.all([fetchMatchDetail(matchId), fetchTimeline(matchId, 1)])
       .then(([d, t]) => {
         if (!alive) return
@@ -51,6 +63,10 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
         setClock(1)
         fetchStory(matchId).then((s) => alive && setStory(s)).catch(() => {})
         fetchEvents(matchId).then((e) => alive && setEvents2d(e)).catch(() => {})
+        fetchTwinStream(matchId)
+          .then((s) => alive && setTwin(s.items))
+          .catch(() => alive && setTwin(null))   // sparse fallback
+        fetchCrossCheck(matchId).then((c) => alive && setCheck(c)).catch(() => {})
       })
       .catch((e) => alive && setError(String(e)))
     return () => {
@@ -116,12 +132,22 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
           {competitionLabel(detail.competition, detail.season)}
           {detail.match_date ? ` · ${detail.match_date}` : ''} · final {detail.home_goals_final}–{detail.away_goals_final}
         </span>
+        {check?.verified && (
+          <span title={`facts agreed by ${check.sources?.join(', ')}`}
+                style={{ fontSize: 11, padding: '1px 8px', borderRadius: 999,
+                         border: '1px solid var(--baseline)',
+                         color: 'var(--text-secondary)' }}>
+            ✓ cross-checked: {check.providers} providers,{' '}
+            {check.fields_agreed}/{check.fields_compared} facts agree
+          </span>
+        )}
       </div>
 
       <div className="card">
         <PitchReplay
           matchId={matchId}
           events={events2d}
+          twin={twin}
           panel={panel}
           story={story}
           clock={clock}
