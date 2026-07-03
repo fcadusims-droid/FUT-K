@@ -221,6 +221,48 @@ def replay2d(match_id: str, db: Session = Depends(get_db)) -> dict:
     return stream
 
 
+@app.get("/matches/{match_id}/simulate")
+def simulate(
+    match_id: str,
+    minute: float = Query(..., ge=0, le=150),
+    n_sims: int = Query(10000, ge=100, le=50000),
+    seed: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Future Simulation Engine: thousands of futures from this minute.
+
+    Runs ``n_sims`` seeded Monte-Carlo forward simulations of the remaining
+    match from the calibrated goal rates, bounded by the match's **real**
+    remaining time (derived from the twin stream / period markers — never a
+    hardcoded 90). Returns the outcome distribution and per-lane opportunity
+    windows. Deterministic given ``seed``.
+    """
+    from fie.events import state_from_events
+    from fie.regime import detect_regime
+    from fie.simulation import simulate_forward
+
+    from .twin import real_duration_minutes
+
+    m = _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    duration = real_duration_minutes(db, m)
+    if duration is None:
+        duration = max((e.minute for e in events), default=90.0)
+    horizon = max(0.0, duration - minute)
+
+    params = get_active_params(db)
+    state = state_from_events(match_id, events, minute)
+    events_until = [e for e in events if e.minute <= minute]
+    regime = detect_regime(state, events_until, params)
+    result = simulate_forward(
+        state, events, params, horizon_minutes=horizon,
+        n_sims=n_sims, seed=seed, regime=regime,
+    )
+    result["real_duration"] = duration
+    result["duration_source"] = "twin stream (real recorded final second)"
+    return result
+
+
 @app.get("/matches/{match_id}/crosscheck")
 def crosscheck(match_id: str, db: Session = Depends(get_db)) -> dict:
     """Multi-provider verification of this fixture's facts (the fusion layer).

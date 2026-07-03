@@ -15,6 +15,7 @@ import type {
 } from '../types'
 import { AskBox } from './AskBox'
 import { MiniCurves } from './MiniCurves'
+import { FutureSim } from './FutureSim'
 import { PitchReplay } from './PitchReplay'
 import { SimilarMatches } from './SimilarMatches'
 import { NetworkView } from './NetworkView'
@@ -230,6 +231,15 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
         />
 
         {analyst && <MiniCurves timeline={timeline} homeName={homeName} awayName={awayName} />}
+      </div>
+
+      <div className="card">
+        <FutureSim
+          matchId={matchId}
+          minute={clock}
+          homeName={homeName}
+          awayName={awayName}
+        />
       </div>
 
       <div className="card">

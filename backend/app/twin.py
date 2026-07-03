@@ -48,6 +48,20 @@ def build_stream(session: Session, match: Match,
     return row
 
 
+def real_duration_minutes(session: Session, match: Match,
+                          cache_dir: str = DEFAULT_CACHE) -> float | None:
+    """The match's real playing time in minutes, derived from data.
+
+    The twin stream's last recorded second is the ground truth for how long
+    the match actually ran (90' + stoppage, or extra time) — never a hardcoded
+    90. Returns None only when no stream and no raw cache exist.
+    """
+    stream = get_stream(session, match, cache_dir)
+    if stream is None or not stream["items"]:
+        return None
+    return round(stream["items"][-1]["t"] / 60.0, 2)
+
+
 def get_stream(session: Session, match: Match,
                cache_dir: str = DEFAULT_CACHE) -> dict | None:
     """Stored stream, or build-on-first-request when the cache allows it."""

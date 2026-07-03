@@ -247,6 +247,28 @@ The dataset now includes **149 matches from 2020+** — World Cup 2022 (64,
   4 leagues (`backend/scripts/ingest_fused.py`, served at
   `GET /fusion/records`).
 
+### 5.9 Real match duration (feasibility of the Future Simulation Engine)
+
+Before building the Future Simulation Engine we validated the constraint that
+matters: a simulation may only run as long as the match **really** ran, and
+that duration must come from data, never a hardcoded 90. Over all **611
+ingested matches**:
+
+| Check | Result |
+|---|---|
+| Matches with period / `Half End` markers | **611 / 611 (100%)** |
+| Real duration span (min / median / max) | 89.9 / 94.0 / **126.1** minutes |
+| Matches with extra time (period ≥ 3) | 19 |
+| Twin-stream end vs `Half End` marker (Leverkusen–Leipzig) | agree to **~3 seconds** |
+| Event timestamp precision | **milliseconds** (`00:00:00.773`) |
+| Event density in the final 5-min window (90–95′) | ~180 events — the endgame stays richly sampled |
+
+So the real remaining time is derivable, precise, and dense enough to simulate
+the endgame — and the fusion layer's full-time-score agreement corroborates
+that each match completed. The engine (`fie/simulation.py`) takes this horizon
+as input and its Monte-Carlo provably converges to the analytic Poisson from
+the same calibrated rates (`tests/test_simulation.py`).
+
 ---
 
 ## 6. Reproducibility

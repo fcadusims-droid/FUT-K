@@ -62,6 +62,11 @@ class FutK:
         """The narrated Match Story."""
         return self._get(f"/matches/{match_id}/story")
 
+    def simulate(self, match_id: str, minute: float, seed: int = 0) -> dict:
+        """Future Simulation Engine: thousands of futures from this minute,
+        bounded by the match's real remaining time. Deterministic per seed."""
+        return self._get(f"/matches/{match_id}/simulate", minute=minute, seed=seed)
+
     def replay2d(self, match_id: str) -> dict:
         """The Digital Match Twin's dense on-ball stream (real trajectories)."""
         return self._get(f"/matches/{match_id}/replay2d")
