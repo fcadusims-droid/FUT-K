@@ -109,7 +109,7 @@ StatsBomb open data ──ingest──> PostgreSQL ──FastAPI──> React re
                                       │
                                engine: src/fie
                     (pure-Python, standard-library only,
-                     214 tests, leakage-safe by construction)
+                     221 tests, leakage-safe by construction)
 ```
 
 | Directory | What it is |
@@ -131,7 +131,7 @@ results (full methodology, tables, and reproduction commands in
 
 | Claim | Evidence |
 |---|---|
-| Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 257 tests green in CI |
+| Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 278 tests green in CI |
 | No information leakage | the **73:15 test** (§ below): 5,499 erase-the-future comparisons over all 611 matches, 100% byte-identical — enforced at engine **and** HTTP level on every push |
 | Calibrated on real football | walk-forward on WC 2018 (fitting closes a wrong prior: gap 0.040 → 0.025) **and** on all 380 La Liga 2015/16 matches (a right prior stays right: gap 0.009) |
 | **Externally anchored** | on real Bet365 odds, the ordering is exactly right: naive baseline (LL 1.050) < Elo (1.007) < **engine's Poisson (0.976)** < market (0.916) — sane machinery, no market-beating claims |

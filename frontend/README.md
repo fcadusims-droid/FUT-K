@@ -1,9 +1,12 @@
 # FIE frontend (Phase C)
 
-React + Vite app for the Football Intelligence Engine: pick a real ingested
-match and replay it minute by minute — the Section 22 intelligent panel (score,
-regime, momentum, predictions with confidence, the explained "why"), a momentum
-timeline with goal markers, and play/scrub controls.
+React + Vite app for the Football Intelligence Engine — the Digital Football
+Twin's web surface. Pick a real ingested match and explore it: the living 2D
+pitch (Digital Match Twin) animated from real recorded actions over the full
+90'+, the Section 22 intelligent panel (score, regime, momentum, predictions
+with confidence, the explained "why"), the momentum timeline, **What If?**
+counterfactuals, the **Future Simulation** panel, Player DNA on click, and
+play/scrub/speed controls.
 
 ## Run (dev)
 

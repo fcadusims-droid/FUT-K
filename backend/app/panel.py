@@ -17,9 +17,10 @@ from fie.indices import momentum_index, offensive_pressure
 from fie.prediction import Params, predictions
 from fie.regime import detect_regime, regime_instability
 
-# Single curated source (StatsBomb replay): fixed trust factors, documented here
-# rather than pretending we have a live multi-source consensus (Section 16 is a
-# later milestone for the API).
+# The panel reads a single curated source per replay (StatsBomb events), so it
+# uses fixed trust factors here. The Section 16 consensus idea ships separately
+# as the fusion layer (fie.fusion, per-match cross-check at /crosscheck);
+# feeding a *live* multi-source consensus into the panel is the future step.
 SOURCE_QUALITY = 0.95
 SOURCE_AGREEMENT = 1.0
 SIMILAR_CASES = 50  # historical DB is populated (Phase A3); refine in Phase D
