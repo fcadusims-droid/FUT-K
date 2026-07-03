@@ -115,7 +115,7 @@ results (full methodology, tables, and reproduction commands in
 | Claim | Evidence |
 |---|---|
 | Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 257 tests green in CI |
-| No information leakage | prediction at minute *t* proven byte-identical when future events are appended — enforced at engine **and** HTTP level |
+| No information leakage | the **73:15 test** (§ below): 5,499 erase-the-future comparisons over all 611 matches, 100% byte-identical — enforced at engine **and** HTTP level on every push |
 | Calibrated on real football | walk-forward on WC 2018 (fitting closes a wrong prior: gap 0.040 → 0.025) **and** on all 380 La Liga 2015/16 matches (a right prior stays right: gap 0.009) |
 | **Externally anchored** | on real Bet365 odds, the ordering is exactly right: naive baseline (LL 1.050) < Elo (1.007) < **engine's Poisson (0.976)** < market (0.916) — sane machinery, no market-beating claims |
 | Multi-target | corners and cards now scored on real data (4,878 held-out snapshots each), not just goals |
@@ -126,6 +126,60 @@ results (full methodology, tables, and reproduction commands in
 
 The two rejected experiments stay in the record on purpose: in this project a
 validated "no" outranks an unvalidated "yes".
+
+## The 73:15 test — proof the predictions are real
+
+One question defines whether an in-play model is honest:
+
+> *Stop a match at exactly 73:15 and erase everything that happened after
+> that instant. Does FUT-K still produce **exactly** the same prediction it
+> produced originally?*
+
+If yes, the model does not depend on the future. If no, information is
+leaking. We ran this adversarially, on real data, at three levels — and the
+answer is yes at every one:
+
+**1. The literal scenario — Belgium 3–2 Japan (WC 2018), stopped at 73:15.**
+The most famous comeback in the dataset, chosen on purpose: at 73:15 Japan
+led 2–1, and the 24 erased events include both of Belgium's comeback goals.
+
+```text
+prediction with full history : goal_next_10min: 0.19, next_goal: {home: 0.695, away: 0.305}
+prediction with future erased: goal_next_10min: 0.19, next_goal: {home: 0.695, away: 0.305}
+byte-identical panels: True
+```
+
+The 69.5% next-goal lean toward Belgium comes from Belgium's pressure *up to
+that minute* — not from knowing the comeback happened.
+
+**2. At scale, engine level.** Every ingested match (611, across all six
+competitions) × 9 cutoffs each, including 73.25 and the 44.9' edge just
+before half-time: **5,499 comparisons, 5,499 byte-identical (100%)**.
+
+**3. The deployed path, database included.** For 24 sampled matches we
+created clones whose post-cutoff events were **deleted from the database
+itself**, then compared the live API's responses (`/state`, `/state/human`,
+`/explain`) between original and clone: **360 comparisons, 360
+byte-identical**. Not a promise about the code — a measurement of the
+running service.
+
+Reproduce it yourself on whatever you have ingested (including your own
+datasets):
+
+```bash
+cd backend
+python scripts/prove_no_leakage.py     # exits non-zero on any leakage
+```
+
+And the property is not a one-off audit: it fails the build on every push —
+T-20-04 at the engine level (`pytest tests/test_calibration.py -k leak`) and
+the HTTP-level twin (`cd backend && pytest tests/test_replay_api.py -k leak`).
+
+One honest boundary: in the 2D **replay** the ball glides toward the *next*
+recorded touchpoint — that uses the future, because a replay is a
+visualization of a finished match, not a prediction. Every predictive number
+on screen (probabilities, momentum, regime, confidence) comes from the
+sliced panel proven above.
 
 ## Design documents
 
