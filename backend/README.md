@@ -47,7 +47,9 @@ uvicorn app.main:app --reload
 - `GET /matches/{id}/timeline?step=5` — panel states across the whole match
   (the replay scrubber's data)
 - `GET /matches/{id}/events` — normalized events with real pitch coordinates
-  (the 2D pitch replay's raw material)
+  and player identity (the 2D pitch replay's raw material)
+- `GET /matches/{id}/whatif?minute=&type=&team=` — What If?: remove one real
+  event and re-run the engine (baseline vs counterfactual series)
 - `GET /players/profiles?team=&archetype=&min_actions=` — player DNA profiles
 - `GET /fusion/records` — cross-provider fused match records with per-field
   provenance (populate with `python scripts/ingest_fused.py`)

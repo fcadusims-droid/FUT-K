@@ -84,6 +84,11 @@ class FutK:
         """Deterministic Q&A over the engine."""
         return self._get(f"/matches/{match_id}/ask", q=question)
 
+    def whatif(self, match_id: str, minute: float, type: str, team: str) -> dict:
+        """Counterfactual: remove one real event and re-run the engine."""
+        return self._get(f"/matches/{match_id}/whatif",
+                         minute=minute, type=type, team=team)
+
     def explain(self, match_id: str, minute: float) -> dict:
         """Structured explanation cascade: claim -> because -> reliability."""
         return self._get(f"/matches/{match_id}/explain", minute=minute)

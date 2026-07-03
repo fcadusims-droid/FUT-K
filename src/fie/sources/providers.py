@@ -48,6 +48,18 @@ FUSION_LEAGUES = {
         "football_data": ("E0", "2324"),
         "openfootball": ("2023-24", "en.1"),
     },
+    "serie-a-2324": {
+        "label": "Serie A 2023/24",
+        "statsbomb": None,
+        "football_data": ("I1", "2324"),
+        "openfootball": ("2023-24", "it.1"),
+    },
+    "ligue-1-2324": {
+        "label": "Ligue 1 2023/24",
+        "statsbomb": None,
+        "football_data": ("F1", "2324"),
+        "openfootball": ("2023-24", "fr.1"),
+    },
 }
 
 

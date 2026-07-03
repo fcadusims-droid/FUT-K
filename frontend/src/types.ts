@@ -50,6 +50,39 @@ export interface MatchEvent2D {
   x: number | null
   y: number | null
   xg: number | null
+  player_id: string | null
+  player: string | null
+}
+
+export interface PlayerProfile {
+  player_id: string
+  name: string | null
+  team: string | null
+  position: string | null
+  actions: number | null
+  goals: number | null
+  assists: number | null
+  pass_accuracy: number | null
+  key_pass_rate: number | null
+  shot_share: number | null
+  archetype: string | null
+}
+
+export interface WhatIfSeries {
+  goal_next_10min: number[]
+  next_goal_home: number[]
+  momentum_home: number[]
+  score: [number, number][]
+}
+
+export interface WhatIfPayload {
+  removed: { minute: number; type: string; team: 'HOME' | 'AWAY' }
+  from_minute: number
+  minutes: number[]
+  baseline: WhatIfSeries
+  counterfactual: WhatIfSeries
+  reading: string
+  note: string
 }
 
 export interface ExplainPayload {

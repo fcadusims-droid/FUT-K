@@ -4,7 +4,9 @@ import type {
   MatchEvent2D,
   MatchSummary,
   PanelState,
+  PlayerProfile,
   StoryBeat,
+  WhatIfPayload,
 } from './types'
 
 const BASE = '/api'
@@ -31,3 +33,11 @@ export const fetchEvents = (id: string) =>
 
 export const fetchExplain = (id: string, minute: number) =>
   get<ExplainPayload>(`/matches/${id}/explain?minute=${minute}`)
+
+export const fetchWhatIf = (id: string, minute: number, type: string, team: string) =>
+  get<WhatIfPayload>(
+    `/matches/${id}/whatif?minute=${minute}&type=${type}&team=${team}`,
+  )
+
+export const fetchPlayerProfile = (playerId: string) =>
+  get<PlayerProfile[]>(`/players/profiles?player_id=${playerId}`)

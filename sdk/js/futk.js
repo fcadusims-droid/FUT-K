@@ -36,6 +36,7 @@ export class FutK {
   similar(id, limit = 5) { return this._get(`/matches/${id}/similar`, { limit }) }
   ask(id, question) { return this._get(`/matches/${id}/ask`, { q: question }) }
   explain(id, minute) { return this._get(`/matches/${id}/explain`, { minute }) }
+  whatif(id, minute, type, team) { return this._get(`/matches/${id}/whatif`, { minute, type, team }) }
   search(q) { return this._get('/search', { q }) }
   insights(preset, team) { return this._get(`/insights/${preset}`, { team }) }
   insightPresets() { return this._get('/insights/presets') }

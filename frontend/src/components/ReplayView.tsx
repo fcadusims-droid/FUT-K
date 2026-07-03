@@ -13,6 +13,7 @@ import { MiniCurves } from './MiniCurves'
 import { PitchReplay } from './PitchReplay'
 import { SimilarMatches } from './SimilarMatches'
 import { NetworkView } from './NetworkView'
+import { WhatIf } from './WhatIf'
 import { Panel } from './Panel'
 import { TimelineChart } from './TimelineChart'
 
@@ -203,6 +204,16 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
         />
 
         {analyst && <MiniCurves timeline={timeline} homeName={homeName} awayName={awayName} />}
+      </div>
+
+      <div className="card">
+        <WhatIf
+          matchId={matchId}
+          events={events2d}
+          homeName={homeName}
+          awayName={awayName}
+          onSeek={seek}
+        />
       </div>
 
       <div className="card">

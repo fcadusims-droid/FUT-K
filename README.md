@@ -152,6 +152,23 @@ Also in the repo: **SDKs** (Python + JavaScript, [`sdk/`](./sdk/)), the
 Consensus and the panel, and the **product definition**
 ([`docs/product/PRODUCT.md`](./docs/product/PRODUCT.md)).
 
+## Bring your own data
+
+FUT-K is not married to its datasets. Anyone can ingest their own event data
+(an open CSV/JSON format — 7 fields) and **calibrate the model on it**, with
+the same held-out promotion gate that protects the official numbers:
+
+```bash
+cd backend
+python scripts/ingest_custom.py --file my_events.csv --competition my-league
+python scripts/recalibrate.py   --from-db --competition my-league
+```
+
+Your matches replay in the app (2D pitch included), and the refit ships only
+if it does not degrade held-out log loss — the gate means you cannot hurt
+yourself. Full walkthrough: [`docs/CUSTOM_DATA.md`](./docs/CUSTOM_DATA.md),
+sample dataset in [`examples/`](./examples/).
+
 ## Running it as a service
 
 ```bash
