@@ -1,0 +1,40 @@
+{
+  "_comment": "Mirrors the football-data.org v4 match-detail schema (the shape returned by GET /v4/matches/{id} with a free API key). Values are illustrative; the structure is the real provider contract this connector maps.",
+  "id": 500001,
+  "utcDate": "2024-05-19T14:00:00Z",
+  "status": "FINISHED",
+  "minute": null,
+  "competition": {"id": 2013, "name": "Campeonato Brasileiro Série A", "code": "BSA"},
+  "homeTeam": {"id": 1766, "name": "CR Flamengo"},
+  "awayTeam": {"id": 1783, "name": "SE Palmeiras"},
+  "score": {
+    "winner": "HOME_TEAM",
+    "fullTime": {"home": 2, "away": 1},
+    "halfTime": {"home": 1, "away": 0}
+  },
+  "goals": [
+    {"minute": 12, "injuryTime": null, "type": "REGULAR",
+     "team": {"id": 1766, "name": "CR Flamengo"},
+     "scorer": {"id": 7801, "name": "Pedro"}, "assist": null,
+     "score": {"home": 1, "away": 0}},
+    {"minute": 58, "injuryTime": null, "type": "REGULAR",
+     "team": {"id": 1783, "name": "SE Palmeiras"},
+     "scorer": {"id": 8802, "name": "Endrick"}, "assist": null,
+     "score": {"home": 1, "away": 1}},
+    {"minute": 83, "injuryTime": null, "type": "PENALTY",
+     "team": {"id": 1766, "name": "CR Flamengo"},
+     "scorer": {"id": 7801, "name": "Pedro"}, "assist": null,
+     "score": {"home": 2, "away": 1}}
+  ],
+  "bookings": [
+    {"minute": 34, "team": {"id": 1783, "name": "SE Palmeiras"},
+     "player": {"id": 8810, "name": "G. Gómez"}, "card": "YELLOW"},
+    {"minute": 77, "team": {"id": 1783, "name": "SE Palmeiras"},
+     "player": {"id": 8810, "name": "G. Gómez"}, "card": "YELLOW_RED"}
+  ],
+  "substitutions": [
+    {"minute": 65, "team": {"id": 1766, "name": "CR Flamengo"},
+     "playerOut": {"id": 7820, "name": "Arrascaeta"},
+     "playerIn": {"id": 7821, "name": "Everton Cebolinha"}}
+  ]
+}

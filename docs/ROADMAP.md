@@ -48,22 +48,23 @@ The highest-ROI phase: make the engine's capability discoverable.
 **Done criterion:** a new user discovers Simulate, Strategy, Vision and Player
 DNA without instruction; links are shareable. (Player DNA + deep-linking: done.)
 
-## Phase 2 — Live data + more leagues · ⬜ (needs external inputs)
+## Phase 2 — Live data + more leagues · 🟡 (free live source shipped)
 
-Live Mode and the fusion layer are built and proven offline; what's missing is a
-real feed. **Requires a provider API key / license** — cannot be completed
-without it, and no fake feed will be shipped.
+Live Mode and the fusion layer were built and proven offline; a **free live
+source is now wired in**. Research + decision: [`DATA_SOURCES.md`](./DATA_SOURCES.md).
 
 | Item | Effort | Status | Notes |
 |---|---|---|---|
-| A live `Source` (subclass `fie/sources/base.py::Source`, injectable loaders like `StatsBombSource`) plugged into the event bus | L | ⬜ | needs credentials (e.g. football-data.org from the data guide) |
+| A live `Source` for **football-data.org** (`fie.sources.footballdata`) — v4 → normalized events, injectable loader, keyless + API-key tiers | L | ✅ | the only free live-capable API in the guide; verified against the real endpoint |
+| Wire it into Live Mode: `backend/app/livefeed.py` + `POST /live/{id}/footballdata` (idempotent polling) | M | ✅ | feeds only new events into the event-bus session |
+| Free API key to unlock goal/card **events** (`FOOTBALL_DATA_API_KEY`) | S | ⬜ | user provides a free key — the one remaining external input |
 | Ingest more Big-5 seasons via the pipeline (`refresh_pair` → `recalibrate` with the held-out promotion gate) | M | ⬜ | promote only if held-out log loss doesn't degrade |
-| Live-stream validation (validation §7) | M | ⬜ | prove streamed state == batch panel on a real feed |
+| Live-stream validation (validation §7) | M | ⬜ | prove streamed state == batch panel on a real feed during a live match |
 
-**First concrete step (no core edits):** implement `Source.matches()` /
-`Source.stream()` for the chosen provider with an injectable HTTP loader so it is
-unit-testable offline against a recorded fixture, exactly as `StatsBombSource`
-already is; wire it to `backend/app/live.py`.
+**Honest limitation (documented, not hidden):** football-data.org is
+match/aggregate level (goals, cards, subs with minutes) — no shots/xG/coordinates.
+The live twin gets a real score, goal/card timeline and everything derived from
+them; event-grade live texture needs a paid provider.
 
 ## Phase 3 — Richer in-play intelligence & tracking-ready · ⬜ (research + data)
 

@@ -1,0 +1,55 @@
+"""Live feed from football-data.org into a Live-Mode session (Phase 2).
+
+Polling glue between the free ``FootballDataSource`` (``fie.sources.footballdata``)
+and the in-process Live Mode engine (``app.live``). ``sync_live`` is the pure,
+testable core: given a live session and the provider's current match JSON, it
+feeds only the events not seen yet — so repeated polls are idempotent and the
+twin's state advances exactly as the real match does. No event is invented: each
+fed observation is a goal/card/substitution the provider actually reported.
+"""
+
+from __future__ import annotations
+
+import os
+
+from fie.sources.footballdata import (
+    FootballDataSource,
+    current_minute,
+    observations_from_match,
+)
+
+
+def _key(obs: dict) -> tuple:
+    return (round(float(obs["minute"]), 3), obs["type"], obs["team"], obs.get("player_id"))
+
+
+def sync_live(session, match: dict) -> int:
+    """Feed every provider event not already in ``session``; advance its clock.
+
+    Returns the number of newly fed events. Idempotent: polling the same match
+    twice feeds nothing the second time (events are diffed by minute/type/team/
+    player), so it is safe to call on a fixed interval.
+    """
+    seen = {
+        (round(e.minute, 3), e.type, e.team, e.player_id) for e in session.events
+    }
+    fed = 0
+    for obs in observations_from_match(match):
+        if _key(obs) in seen:
+            continue
+        session.observe(obs)
+        seen.add(_key(obs))
+        fed += 1
+    # Advance the clock to the provider's live minute even when no event landed.
+    session.tick(current_minute(match))
+    return fed
+
+
+def fetch_live_match(fd_id: int, api_key: str | None = None) -> dict:
+    """Fetch one football-data.org match's detail (needs a free key for events).
+
+    Reads the ``FOOTBALL_DATA_API_KEY`` env var when no key is passed. Raises on
+    network/HTTP errors — the caller decides how to surface them.
+    """
+    key = api_key if api_key is not None else os.environ.get("FOOTBALL_DATA_API_KEY")
+    return FootballDataSource(key).match(fd_id)
