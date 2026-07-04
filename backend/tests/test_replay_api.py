@@ -140,3 +140,31 @@ def test_player_profiles_filters(client, db_session):
 
     active = client.get("/players/profiles", params={"min_actions": 50}).json()
     assert {p["player_id"] for p in active} == {"1", "2"}
+
+
+def test_player_profiles_provenance_and_confidence(client, db_session):
+    """Profiles expose their evidence base (confidence, match count, sources);
+    the min_confidence filter never lets an unknown-confidence profile through."""
+    db_session.add_all([
+        PlayerProfile(player_id="10", name="Well Observed", team="HOME", actions=540,
+                      goals=4, archetype="finisher", confidence=0.9, matches=12,
+                      sources="statsbomb"),
+        PlayerProfile(player_id="11", name="Thinly Observed", team="HOME", actions=80,
+                      goals=0, archetype="balanced", confidence=0.5, matches=1,
+                      sources="statsbomb"),
+        PlayerProfile(player_id="12", name="Legacy Row", team="AWAY", actions=200,
+                      goals=1, archetype="balanced"),  # no provenance recorded
+    ])
+    db_session.commit()
+
+    rows = {p["player_id"]: p for p in client.get("/players/profiles").json()}
+    assert rows["10"]["confidence"] == 0.9
+    assert rows["10"]["matches"] == 12
+    assert rows["10"]["sources"] == ["statsbomb"]
+    # A legacy row without provenance reports empty/None — never a fabricated value.
+    assert rows["12"]["confidence"] is None
+    assert rows["12"]["sources"] == []
+
+    # min_confidence filters by measured reliability and excludes unknown (NULL).
+    reliable = client.get("/players/profiles", params={"min_confidence": 0.7}).json()
+    assert {p["player_id"] for p in reliable} == {"10"}

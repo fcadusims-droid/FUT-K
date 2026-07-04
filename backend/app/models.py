@@ -116,6 +116,12 @@ class PlayerProfile(Base):
     shot_share: Mapped[float | None] = mapped_column(Float)
     turnover_rate: Mapped[float | None] = mapped_column(Float)
     archetype: Mapped[str | None] = mapped_column(String)
+    # Provenance + evidence-based reliability (Section 12). Nullable: a profile
+    # persisted before these were tracked simply reports them as unknown, never
+    # a fabricated value.
+    matches: Mapped[int | None] = mapped_column(Integer)
+    sources: Mapped[str | None] = mapped_column(String)  # comma-joined dataset names
+    confidence: Mapped[float | None] = mapped_column(Float)
 
 
 class Interaction(Base):

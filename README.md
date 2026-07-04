@@ -134,7 +134,12 @@ comebacks, blown leads, late drama — across every ingested match:
   that reproduces it.
 - **Player DNA** — per-player profiles built from real event data (pass
   accuracy, progression, key passes, archetypes like *finisher* / *creator*),
-  served by the API.
+  each carrying an evidence-based **confidence** (a documented, saturating
+  function of on-ball volume — 0.5 at the archetype threshold, never certainty)
+  and its **provenance** (the contributing match count and data sources).
+  Nothing is fabricated: unmeasured fields stay empty, and a profile with no
+  recorded source reports none. Served by the API, filterable by
+  `min_confidence`.
 
 ## Architecture
 

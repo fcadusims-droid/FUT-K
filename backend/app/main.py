@@ -733,6 +733,7 @@ def player_profiles(
     archetype: str | None = None,
     player_id: str | None = None,
     min_actions: int = Query(0, ge=0),
+    min_confidence: float = Query(0.0, ge=0.0, le=1.0),
     db: Session = Depends(get_db),
 ) -> list[dict]:
     stmt = select(PlayerProfile)
@@ -744,6 +745,10 @@ def player_profiles(
         stmt = stmt.where(PlayerProfile.archetype == archetype)
     if min_actions:
         stmt = stmt.where(PlayerProfile.actions >= min_actions)
+    if min_confidence:
+        # A profile whose confidence is unknown (NULL) is not >= the threshold,
+        # so it is correctly excluded — no fabricated reliability slips through.
+        stmt = stmt.where(PlayerProfile.confidence >= min_confidence)
     rows = db.execute(stmt.order_by(PlayerProfile.actions.desc())).scalars().all()
     return [
         {
@@ -758,6 +763,11 @@ def player_profiles(
             "key_pass_rate": p.key_pass_rate,
             "shot_share": p.shot_share,
             "archetype": p.archetype,
+            # Provenance + reliability — every profile says how much real
+            # evidence backs it and from where (empty list when unknown).
+            "confidence": p.confidence,
+            "matches": p.matches,
+            "sources": p.sources.split(",") if p.sources else [],
         }
         for p in rows
     ]
