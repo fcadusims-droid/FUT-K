@@ -30,6 +30,7 @@ MODULE_LAYER = {
     "plugins": "inference",
     "fusion": "inference",
     "simulation": "inference",
+    "strategy": "inference",
     "players": "knowledge",
     "coaches": "knowledge",
     "tactical": "knowledge",

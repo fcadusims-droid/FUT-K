@@ -48,6 +48,7 @@ const twins = await fk.similar('7525')
 | what if? | `GET /matches/{id}/whatif?minute=&type=&team=` |
 | future sim | `GET /matches/{id}/simulate?minute=&seed=` |
 | tactics | `GET /matches/{id}/tactics?minute=` |
+| strategy | `GET /matches/{id}/decisions?minute=&team=&seed=` |
 | search | `GET /search?q=`, `GET /matches/{id}/similar` |
 | ask | `GET /matches/{id}/ask?q=` |
 | team | `GET /teams/{team}/evolution` |

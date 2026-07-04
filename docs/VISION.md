@@ -58,7 +58,7 @@ deterministic and honest by construction:
 | **Tactical reasoning** — the intelligent field (engagement lines, territory, opportunity corridor with live probability) + deterministic Q&A | ✅ shipped | `/matches/{id}/tactics`, `/matches/{id}/ask` |
 | **Future Simulation Engine** — thousands of seeded forward simulations from the current state, bounded by the match's real remaining time; outcome distribution + opportunity windows (lane + timing) | ✅ shipped | `fie/simulation.py`, `/matches/{id}/simulate` |
 | **Live mode** — the same twin fed by live multi-source feeds through the fusion layer | 🔭 next | fusion + event bus trigger documented in `docs/ARCHITECTURE.md` |
-| **Strategic assistant** — "which substitution raises win probability most?" | 🔭 later | the future-simulation engine it needs now exists |
+| **Strategic assistant** — "which decision raises win probability most?": each approach re-simulated, ranked by win-probability delta | ✅ shipped | `fie/strategy.py`, `/matches/{id}/decisions` |
 
 ## The reconstruction promise (and its honest boundary)
 

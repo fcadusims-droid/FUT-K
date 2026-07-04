@@ -103,6 +103,29 @@ export interface CrossCheck {
   note?: string
 }
 
+export interface Decision {
+  key: string
+  label: string
+  win: number
+  draw: number
+  loss: number
+  delta_win: number
+  self_mult: number
+  opp_mult: number
+}
+
+export interface DecisionReport {
+  team: 'HOME' | 'AWAY'
+  minute: number
+  horizon_minutes: number
+  n_sims: number
+  seed: number
+  baseline_win: number
+  recommended: string
+  decisions: Decision[]
+  note: string
+}
+
 export interface TacticalGeometry {
   minute: number
   territory_home: number

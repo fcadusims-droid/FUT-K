@@ -100,6 +100,13 @@ comebacks, blown leads, late drama — across every ingested match:
   the same validated rates).
 
   ![Future Simulation — thousands of futures, bounded by the match's real remaining time](docs/images/app-future-sim.png)
+- **Strategic Assistant** — *"which decision raises the win chance most?"* Each
+  candidate approach (commit forward, sit deeper, keep the ball, hold shape) is
+  re-simulated thousands of times and ranked by its change in win probability —
+  combining What If? with the Future Simulation Engine. A model-based decision
+  aid, honestly labelled as such.
+
+  ![Strategic Assistant — approaches ranked by win-probability delta](docs/images/app-strategy.png)
 - **Match Story** — the narrated timeline: kick-off, goals in context, "the
   game changed" beats, momentum swings, full time. Click a beat to jump the
   replay there.

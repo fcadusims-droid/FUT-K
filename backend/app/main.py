@@ -263,6 +263,43 @@ def simulate(
     return result
 
 
+@app.get("/matches/{match_id}/decisions")
+def decisions(
+    match_id: str,
+    minute: float = Query(..., ge=0, le=150),
+    team: str = Query("HOME"),
+    seed: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Strategic Assistant: rank in-match approaches by win-probability delta.
+
+    Re-simulates the remaining match (real data-bounded horizon) under each
+    candidate approach and ranks them for ``team``. Deterministic given
+    ``seed``; the payload states it is a model-based decision aid.
+    """
+    from fie.events import state_from_events
+    from fie.regime import detect_regime
+    from fie.strategy import evaluate_decisions
+
+    from .twin import real_duration_minutes
+
+    if team not in ("HOME", "AWAY"):
+        raise HTTPException(status_code=422, detail="team must be HOME or AWAY")
+    m = _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    duration = real_duration_minutes(db, m)
+    if duration is None:
+        duration = max((e.minute for e in events), default=90.0)
+    horizon = max(0.0, duration - minute)
+
+    params = get_active_params(db)
+    state = state_from_events(match_id, events, minute)
+    events_until = [e for e in events if e.minute <= minute]
+    regime = detect_regime(state, events_until, params)
+    return evaluate_decisions(state, events, params, team=team,
+                              horizon_minutes=horizon, seed=seed, regime=regime)
+
+
 @app.get("/matches/{match_id}/tactics")
 def tactics(
     match_id: str,

@@ -74,16 +74,23 @@ def simulate_forward(
     regime: str | None = None,
     profiles: dict | None = None,
     step_seconds: float = 15.0,
+    rate_mult: tuple = (1.0, 1.0),
 ) -> dict:
     """Monte-Carlo projection of the remaining match from ``state.minute``.
 
     ``horizon_minutes`` is the real time left, supplied by the caller from
     match data — never assumed. Returns the outcome distribution over that
     horizon plus per-lane opportunity windows. Deterministic given ``seed``.
+
+    ``rate_mult`` scales ``(lambda_home, lambda_away)`` after they are computed
+    — the honest hook the Strategic Assistant uses to model a decision's effect
+    on each side's scoring intensity (1.0 = no change).
     """
     params = params or Params()
     horizon = max(0.0, float(horizon_minutes))
     lam_home, lam_away = rates(state, events, params, regime, profiles)  # per minute
+    lam_home *= rate_mult[0]
+    lam_away *= rate_mult[1]
     lw = {
         "HOME": lane_weights(events, "HOME", state.minute, params.tau),
         "AWAY": lane_weights(events, "AWAY", state.minute, params.tau),
@@ -97,6 +104,11 @@ def simulate_forward(
             "seed": seed,
             "goal_prob": {"home": 0.0, "away": 0.0, "any": 0.0},
             "expected_goals": {"home": 0.0, "away": 0.0},
+            "outcome": {
+                "home_win": 1.0 if state.home_goals > state.away_goals else 0.0,
+                "draw": 1.0 if state.home_goals == state.away_goals else 0.0,
+                "away_win": 1.0 if state.away_goals > state.home_goals else 0.0,
+            },
             "scorelines": [],
             "opportunity_windows": [],
             "note": "no real time remaining — nothing left to simulate",
@@ -110,6 +122,9 @@ def simulate_forward(
     rng = random.Random(seed)
     home_goals_tot = away_goals_tot = 0
     any_goal = home_any = away_any = 0
+    # Final-outcome tally from the CURRENT score + simulated remaining goals.
+    now_h, now_a = state.home_goals, state.away_goals
+    win_home = draw = win_away = 0
     scoreline_counts: dict = {}
     # Per-lane, per-team hazard accumulation over the horizon, and the earliest
     # step where a chance is likely (for the "window").
@@ -147,6 +162,13 @@ def simulate_forward(
             home_any += 1
         if a > 0:
             away_any += 1
+        final_h, final_a = now_h + h, now_a + a
+        if final_h > final_a:
+            win_home += 1
+        elif final_h < final_a:
+            win_away += 1
+        else:
+            draw += 1
         key = f"{h}-{a}"
         scoreline_counts[key] = scoreline_counts.get(key, 0) + 1
 
@@ -190,6 +212,11 @@ def simulate_forward(
         "expected_goals": {
             "home": round(home_goals_tot / n_sims, 3),
             "away": round(away_goals_tot / n_sims, 3),
+        },
+        "outcome": {
+            "home_win": round(win_home / n_sims, 3),
+            "draw": round(draw / n_sims, 3),
+            "away_win": round(win_away / n_sims, 3),
         },
         "scorelines": scorelines,
         "opportunity_windows": windows,

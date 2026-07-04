@@ -60,6 +60,8 @@ uvicorn app.main:app --reload
 - `GET /matches/{id}/tactics?minute=` — the Visual Twin's intelligent-field
   geometry: per-team engagement lines, corridor tendencies, territory, joined
   with the live goal probability
+- `GET /matches/{id}/decisions?minute=&team=&seed=` — Strategic Assistant:
+  candidate in-match approaches re-simulated and ranked by win-probability delta
 - `GET /players/profiles?team=&archetype=&min_actions=` — player DNA profiles
 - `GET /fusion/records` — cross-provider fused match records with per-field
   provenance (populate with `python scripts/ingest_fused.py`)
