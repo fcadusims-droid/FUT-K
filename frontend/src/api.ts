@@ -55,6 +55,23 @@ export const fetchWhatIf = (id: string, minute: number, type: string, team: stri
 export const fetchPlayerProfile = (playerId: string) =>
   get<PlayerProfile[]>(`/players/profiles?player_id=${playerId}`)
 
+export interface ProfileFilters {
+  team?: string
+  archetype?: string
+  minActions?: number
+  minConfidence?: number
+}
+
+export const fetchPlayerProfiles = (opts: ProfileFilters = {}) => {
+  const q = new URLSearchParams()
+  if (opts.team) q.set('team', opts.team)
+  if (opts.archetype) q.set('archetype', opts.archetype)
+  if (opts.minActions) q.set('min_actions', String(opts.minActions))
+  if (opts.minConfidence) q.set('min_confidence', String(opts.minConfidence))
+  const qs = q.toString()
+  return get<PlayerProfile[]>(`/players/profiles${qs ? `?${qs}` : ''}`)
+}
+
 export const fetchTwinStream = (id: string) =>
   get<TwinStream>(`/matches/${id}/replay2d`)
 

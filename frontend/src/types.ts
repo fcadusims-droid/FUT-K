@@ -66,6 +66,10 @@ export interface PlayerProfile {
   key_pass_rate: number | null
   shot_share: number | null
   archetype: string | null
+  // Evidence-based reliability + provenance (empty/null when unknown).
+  confidence: number | null
+  matches: number | null
+  sources: string[]
 }
 
 // One item of the Digital Match Twin's dense on-ball stream: a real recorded
