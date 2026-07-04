@@ -158,8 +158,9 @@ def match_timeline(
     _get_match(db, match_id)
     events = _load_events(db, match_id)
     duration = int(max((e.minute for e in events), default=90.0))
+    params = get_active_params(db)  # constant per request — read once, not per minute
     return [
-        panel_state(events, float(minute), match_id=match_id, params=get_active_params(db))
+        panel_state(events, float(minute), match_id=match_id, params=params)
         for minute in range(step, duration + 1, step)
     ]
 
@@ -555,8 +556,9 @@ def match_story_endpoint(match_id: str, db: Session = Depends(get_db)) -> list[d
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
     duration = math.ceil(max((e.minute for e in events), default=90.0))
+    params = get_active_params(db)  # constant per request — read once, not per minute
     timeline = [
-        panel_state(events, float(t), match_id=match_id, params=get_active_params(db))
+        panel_state(events, float(t), match_id=match_id, params=params)
         for t in range(1, duration + 1)
     ]
     goal_minutes = [{"minute": e.minute, "team": e.team} for e in events if e.type == "goal"]
@@ -622,7 +624,8 @@ def _ask_context(db: Session, match_id: str) -> dict:
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
     duration = math.ceil(max((e.minute for e in events), default=90.0))
-    timeline = [panel_state(events, float(t), match_id=match_id, params=get_active_params(db))
+    params = get_active_params(db)  # constant per request — read once, not per minute
+    timeline = [panel_state(events, float(t), match_id=match_id, params=params)
                 for t in range(1, duration + 1)]
     goal_minutes = [{"minute": e.minute, "team": e.team}
                     for e in events if e.type == "goal"]
