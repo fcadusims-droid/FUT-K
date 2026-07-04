@@ -100,6 +100,22 @@ comebacks, blown leads, late drama — across every ingested match:
   the same validated rates).
 
   ![Future Simulation — thousands of futures, bounded by the match's real remaining time](docs/images/app-future-sim.png)
+- **Strategic Assistant** — *"which decision raises the win chance most?"* Each
+  candidate approach (commit forward, sit deeper, keep the ball, hold shape) is
+  re-simulated thousands of times and ranked by its change in win probability —
+  combining What If? with the Future Simulation Engine. A model-based decision
+  aid, honestly labelled as such.
+
+  ![Strategic Assistant — approaches ranked by win-probability delta](docs/images/app-strategy.png)
+- **Vision Engine** — a continuous, self-correcting state of the match: every
+  entity is held with **decaying confidence** between observations and
+  corrected when a real one arrives, and the engine **grades its own error**
+  against reality. The shift is from *"what's in this frame?"* to *"what is the
+  most likely state of the match right now?"* On sparse event data it honestly
+  finds that holding a player's last position beats extrapolating velocity —
+  and does exactly that; the kinematic model is ready for a dense tracking feed.
+
+  ![Vision Engine — continuous estimated state with self-evaluation](docs/images/app-vision.png)
 - **Match Story** — the narrated timeline: kick-off, goals in context, "the
   game changed" beats, momentum swings, full time. Click a beat to jump the
   replay there.

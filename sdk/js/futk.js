@@ -32,6 +32,8 @@ export class FutK {
   story(id) { return this._get(`/matches/${id}/story`) }
   events(id) { return this._get(`/matches/${id}/events`) }
   simulate(id, minute, seed = 0) { return this._get(`/matches/${id}/simulate`, { minute, seed }) }
+  decisions(id, minute, team = 'HOME', seed = 0) { return this._get(`/matches/${id}/decisions`, { minute, team, seed }) }
+  vision(id, minute, evaluate = false) { return this._get(`/matches/${id}/vision`, { minute, evaluate }) }
   tactics(id, minute) { return this._get(`/matches/${id}/tactics`, { minute }) }
   replay2d(id) { return this._get(`/matches/${id}/replay2d`) }
   crosscheck(id) { return this._get(`/matches/${id}/crosscheck`) }
