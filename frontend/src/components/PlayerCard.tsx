@@ -61,6 +61,12 @@ export function PlayerCard({ playerId, playerName, onClose }: Props) {
             <tr><td>Pass accuracy</td><td>{pct(profile.pass_accuracy)}</td></tr>
             <tr><td>Key-pass rate</td><td>{pct(profile.key_pass_rate)}</td></tr>
             <tr><td>Shot share</td><td>{pct(profile.shot_share)}</td></tr>
+            <tr><td>Confidence</td>
+                <td title="Evidence-based reliability: a function of on-ball volume, never certainty">
+                  {pct(profile.confidence)}</td></tr>
+            <tr><td>Evidence</td>
+                <td>{profile.matches ?? '—'} match{profile.matches === 1 ? '' : 'es'}
+                    {profile.sources?.length ? ` · ${profile.sources.join(', ')}` : ''}</td></tr>
           </tbody>
         </table>
       ) : missing ? (

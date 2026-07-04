@@ -1,38 +1,62 @@
-import { useState } from 'react'
 import { Benchmarks } from './components/Benchmarks'
 import { Explore } from './components/Explore'
 import { MatchList } from './components/MatchList'
+import { PlayersView } from './components/PlayersView'
 import { ReplayView } from './components/ReplayView'
+import { navigate, routeParts, useHashRoute } from './router'
 
-type Tab = 'matches' | 'explore' | 'benchmarks'
+const TABS: { section: string; label: string }[] = [
+  { section: 'matches', label: 'Matches' },
+  { section: 'players', label: 'Players' },
+  { section: 'explore', label: 'Explore' },
+  { section: 'benchmarks', label: 'Benchmarks' },
+]
 
 export default function App() {
-  const [matchId, setMatchId] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('matches')
+  const route = useHashRoute()
+  const [section = 'matches', param = null] = routeParts(route)
 
   return (
     <>
-      <h1>FUT-K</h1>
+      <h1 style={{ cursor: 'pointer' }} onClick={() => navigate('/matches')}>FUT-K</h1>
       <p className="subtitle">
         The match intelligence terminal — open any match and understand it like
         a professional analyst.
       </p>
-      {matchId ? (
-        <ReplayView matchId={matchId} onBack={() => setMatchId(null)} onOpenMatch={setMatchId} />
+      {section === 'match' && param ? (
+        <ReplayView
+          matchId={param}
+          onBack={() => navigate('/matches')}
+          onOpenMatch={(id) => navigate(`/match/${id}`)}
+        />
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            <button className={tab === 'matches' ? 'primary' : ''} onClick={() => setTab('matches')}>
-              Matches
-            </button>
-            <button className={tab === 'explore' ? 'primary' : ''} onClick={() => setTab('explore')}>
-              Explore
-            </button>
-            <button className={tab === 'benchmarks' ? 'primary' : ''} onClick={() => setTab('benchmarks')}>
-              Benchmarks
-            </button>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            {TABS.map((t) => {
+              const active = section === t.section || (t.section === 'players' && section === 'player')
+              return (
+                <button
+                  key={t.section}
+                  className={active ? 'primary' : ''}
+                  onClick={() => navigate(`/${t.section}`)}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
           </div>
-          {tab === 'matches' ? <MatchList onSelect={setMatchId} /> : tab === 'explore' ? <Explore onSelect={setMatchId} /> : <Benchmarks />}
+          {section === 'explore' ? (
+            <Explore onSelect={(id) => navigate(`/match/${id}`)} />
+          ) : section === 'benchmarks' ? (
+            <Benchmarks />
+          ) : section === 'players' || section === 'player' ? (
+            <PlayersView
+              selectedId={section === 'player' ? param : null}
+              onSelect={(id) => navigate(id ? `/player/${id}` : '/players')}
+            />
+          ) : (
+            <MatchList onSelect={(id) => navigate(`/match/${id}`)} />
+          )}
         </>
       )}
     </>
