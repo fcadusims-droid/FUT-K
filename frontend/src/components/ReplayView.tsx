@@ -16,6 +16,7 @@ import type {
 import { AskBox } from './AskBox'
 import { MiniCurves } from './MiniCurves'
 import { FutureSim } from './FutureSim'
+import { LivePanel } from './LivePanel'
 import { PitchReplay } from './PitchReplay'
 import { Strategy } from './Strategy'
 import { VisionPanel } from './VisionPanel'
@@ -242,6 +243,10 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
           homeName={homeName}
           awayName={awayName}
         />
+      </div>
+
+      <div className="card">
+        <LivePanel matchId={matchId} minute={clock} homeName={homeName} awayName={awayName} />
       </div>
 
       <div className="card">

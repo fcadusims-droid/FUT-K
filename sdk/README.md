@@ -50,6 +50,7 @@ const twins = await fk.similar('7525')
 | tactics | `GET /matches/{id}/tactics?minute=` |
 | strategy | `GET /matches/{id}/decisions?minute=&team=&seed=` |
 | vision | `GET /matches/{id}/vision?minute=&evaluate=` |
+| live | `POST /live/{id}/start · /observe · /replay_feed?upto=`, `GET /live/{id}/state` |
 | search | `GET /search?q=`, `GET /matches/{id}/similar` |
 | ask | `GET /matches/{id}/ask?q=` |
 | team | `GET /teams/{team}/evolution` |

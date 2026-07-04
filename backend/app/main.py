@@ -263,6 +263,78 @@ def simulate(
     return result
 
 
+@app.post("/live/{match_id}/start")
+def live_start(match_id: str, db: Session = Depends(get_db)) -> dict:
+    """Open a Live Mode session for a match (empty; fed by observations)."""
+    from . import live
+
+    m = _get_match(db, match_id)
+    session = live.start(match_id, m.home_team or "HOME", m.away_team or "AWAY",
+                         get_active_params(db))
+    return session.snapshot()
+
+
+@app.post("/live/{match_id}/observe")
+def live_observe(match_id: str, obs: dict, db: Session = Depends(get_db)) -> dict:
+    """Push one observation into a live session; get the corrected state back.
+
+    ``obs``: {minute, team (HOME/AWAY), type, x?, y?, player_id?, player?}.
+    """
+    from . import live
+
+    session = live.get(match_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="no live session; POST /start first")
+    if obs.get("team") not in ("HOME", "AWAY") or not obs.get("type"):
+        raise HTTPException(status_code=422, detail="obs needs team HOME/AWAY and a type")
+    return session.observe(obs)
+
+
+@app.get("/live/{match_id}/state")
+def live_state(match_id: str) -> dict:
+    from . import live
+
+    session = live.get(match_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="no live session")
+    return session.snapshot()
+
+
+@app.post("/live/{match_id}/replay_feed")
+def live_replay_feed(
+    match_id: str,
+    upto: float = Query(..., ge=0, le=150),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Demo: replay a real match as a live feed up to ``upto`` minutes.
+
+    Streams the match's real events one by one through a fresh live session —
+    the same path a real feed would take — and returns the resulting live
+    state. Because the engine is leakage-safe, this live state is identical to
+    the batch panel at ``upto`` (the honest proof the streaming path changed
+    nothing); the response includes ``matches_batch`` = True/False.
+    """
+    from . import live
+
+    m = _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    params = get_active_params(db)
+    session = live.start(match_id + "::live", m.home_team or "HOME",
+                         m.away_team or "AWAY", params)
+    for e in events:
+        if e.minute > upto:
+            continue
+        session.observe({"minute": e.minute, "team": e.team, "type": e.type,
+                         "x": e.x, "y": e.y, "player_id": e.player_id})
+    session.tick(upto)                 # the clock reaches `upto`, as a feed's would
+    live.stop(match_id + "::live")
+    snap = session.snapshot()
+    batch = panel_state(events, upto, match_id=match_id, params=params)
+    snap["matches_batch"] = (snap["panel"]["predictions"] == batch["predictions"]
+                             and snap["panel"]["score"] == batch["score"])
+    return snap
+
+
 @app.get("/matches/{match_id}/vision")
 def vision(
     match_id: str,

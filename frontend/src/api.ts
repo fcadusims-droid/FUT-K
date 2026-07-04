@@ -8,6 +8,7 @@ import type {
   PanelState,
   PlayerProfile,
   SimulationResult,
+  LiveState,
   StoryBeat,
   TacticalGeometry,
   VisionState,
@@ -19,6 +20,12 @@ const BASE = '/api'
 
 async function get<T>(path: string): Promise<T> {
   const resp = await fetch(`${BASE}${path}`)
+  if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText} for ${path}`)
+  return resp.json() as Promise<T>
+}
+
+async function post<T>(path: string): Promise<T> {
+  const resp = await fetch(`${BASE}${path}`, { method: 'POST' })
   if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText} for ${path}`)
   return resp.json() as Promise<T>
 }
@@ -56,6 +63,9 @@ export const fetchCrossCheck = (id: string) =>
 
 export const fetchTactics = (id: string, minute: number) =>
   get<TacticalGeometry>(`/matches/${id}/tactics?minute=${minute.toFixed(2)}`)
+
+export const liveReplayFeed = (id: string, upto: number) =>
+  post<LiveState>(`/live/${id}/replay_feed?upto=${upto.toFixed(2)}`)
 
 export const fetchVision = (id: string, minute: number, evaluate = false) =>
   get<VisionState>(

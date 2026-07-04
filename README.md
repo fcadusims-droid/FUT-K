@@ -16,6 +16,8 @@ intelligence into a visual, interactive, explainable experience.
 - ✓ **Data Fusion Engine** — many providers reconciled into one deterministic truth, with provenance and dissent
 - ✓ **Explainable AI** — every claim traces to its evidence; ask the engine in plain language
 - ✓ **Learning Engine** — recalibrates on new data, promotes only when held-out metrics don't degrade
+- ✓ **Vision Engine** — a continuous, self-correcting state estimate: entities held with decaying confidence, corrected on re-observation, grading its own error
+- ✓ **Live Mode** — the same engine fed one observation at a time through an event bus; the streamed state provably equals the batch panel
 - ✓ **Replay Intelligence** + **REST API** + **SDKs** (Python/JS) — every capability scriptable
 
 Pick a real match and watch the engine read it minute by minute — who controls

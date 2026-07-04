@@ -103,6 +103,18 @@ export interface CrossCheck {
   note?: string
 }
 
+export interface LiveState {
+  match_id: string
+  home: string
+  away: string
+  minute: number
+  n_events: number
+  panel: PanelState
+  vision: { n_entities: number; entities: Record<string, VisionEntity> }
+  log: string[]
+  matches_batch: boolean
+}
+
 export interface VisionEntity {
   name: string | null
   x: number

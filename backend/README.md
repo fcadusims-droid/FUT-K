@@ -65,6 +65,9 @@ uvicorn app.main:app --reload
 - `GET /matches/{id}/vision?minute=&evaluate=` — Vision Engine: the continuous
   estimated state of every entity (position + confidence, held between real
   observations), with optional self-evaluation of its prediction error
+- `POST /live/{id}/start`, `POST /live/{id}/observe`, `GET /live/{id}/state`,
+  `POST /live/{id}/replay_feed?upto=` — Live Mode: stream observations one at a
+  time through the event bus; the streamed state provably equals the batch panel
 - `GET /players/profiles?team=&archetype=&min_actions=` — player DNA profiles
 - `GET /fusion/records` — cross-provider fused match records with per-field
   provenance (populate with `python scripts/ingest_fused.py`)
