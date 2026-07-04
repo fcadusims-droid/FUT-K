@@ -32,3 +32,10 @@ include = ["app*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+filterwarnings = [
+    # Third-party deprecation from starlette's TestClient nudging httpx2. Not
+    # ours to fix, harmless in tests, and production never imports TestClient —
+    # keep the suite output clean. Remove once fastapi ships a starlette that
+    # no longer emits it.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

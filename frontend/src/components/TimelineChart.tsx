@@ -4,7 +4,7 @@
 // the hovered minute (interaction.md); clicking seeks the replay. The table
 // view twin lives in ReplayView, so no value is gated behind hover.
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { MatchDetail, PanelState } from '../types'
 
 interface Props {
@@ -25,15 +25,17 @@ export function TimelineChart({ timeline, detail, minute, onSeek, homeName, away
   const svgRef = useRef<SVGSVGElement>(null)
 
   const maxMin = timeline.length ? timeline[timeline.length - 1].minute : 90
-  const x = (m: number) => PAD.left + ((W - PAD.left - PAD.right) * m) / maxMin
-  const y = (v: number) => PAD.top + (H - PAD.top - PAD.bottom) * (1 - v)
+  // useCallback so these are stable deps for the path memo: x tracks maxMin, y
+  // depends only on module constants. (Fixes the exhaustive-deps warnings.)
+  const x = useCallback((m: number) => PAD.left + ((W - PAD.left - PAD.right) * m) / maxMin, [maxMin])
+  const y = useCallback((v: number) => PAD.top + (H - PAD.top - PAD.bottom) * (1 - v), [])
 
   const path = useMemo(
     () =>
       timeline
         .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.minute).toFixed(1)},${y(p.momentum.home).toFixed(1)}`)
         .join(' '),
-    [timeline, maxMin],
+    [timeline, x, y],
   )
 
   const nearest = (clientX: number): PanelState | null => {
