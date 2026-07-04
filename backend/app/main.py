@@ -301,6 +301,44 @@ def live_state(match_id: str) -> dict:
     return session.snapshot()
 
 
+@app.post("/live/{match_id}/footballdata")
+def live_footballdata(
+    match_id: str,
+    fd_id: int = Query(..., description="football-data.org match id"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Feed a live session from football-data.org (Phase 2 — free live source).
+
+    Polls one football-data.org match and feeds any events not yet seen into the
+    Live-Mode session (creating it on first call), then returns the corrected
+    live state. Idempotent — safe to call on an interval. Needs a free
+    ``FOOTBALL_DATA_API_KEY`` for goal/card events; without one the provider
+    returns only the scoreboard (score/status/minute) and no events flow.
+    """
+    from . import live
+    from .livefeed import fetch_live_match, sync_live
+
+    try:
+        match = fetch_live_match(fd_id)
+    except Exception as exc:  # noqa: BLE001 - network / auth / rate limit
+        raise HTTPException(
+            status_code=502, detail=f"football-data.org unavailable: {exc}"
+        ) from exc
+    if not match or match.get("id") is None:
+        raise HTTPException(status_code=404, detail=f"no football-data.org match {fd_id}")
+
+    home = (match.get("homeTeam") or {}).get("name") or "HOME"
+    away = (match.get("awayTeam") or {}).get("name") or "AWAY"
+    session = live.get(match_id) or live.start(match_id, home, away, get_active_params(db))
+    new_events = sync_live(session, match)
+
+    snap = session.snapshot()
+    snap["new_events"] = new_events
+    snap["source"] = "football-data.org"
+    snap["fd_status"] = match.get("status")
+    return snap
+
+
 @app.post("/live/{match_id}/replay_feed")
 def live_replay_feed(
     match_id: str,
