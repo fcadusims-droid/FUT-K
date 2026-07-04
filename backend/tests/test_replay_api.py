@@ -93,6 +93,34 @@ def test_timeline_scrubber(client, seeded_match):
     assert home_goals[-1] == 3
 
 
+@pytest.mark.parametrize(
+    "url, params",
+    [
+        ("/matches/m1/timeline", {"step": 5}),
+        ("/matches/m1/story", {}),
+        ("/matches/m1/ask", {"q": "what happened after minute 60?"}),
+    ],
+)
+def test_active_params_read_once_per_request(client, seeded_match, monkeypatch, url, params):
+    """Perf regression guard: the active model params are constant within a
+    request, so these whole-match endpoints must read them once — not once per
+    simulated minute (an N+1 SELECT over model_versions). Before the fix these
+    looped one query per minute (~18-90 per request)."""
+    import app.main as main
+
+    calls = {"n": 0}
+    real = main.get_active_params
+
+    def counting(db):
+        calls["n"] += 1
+        return real(db)
+
+    monkeypatch.setattr(main, "get_active_params", counting)
+    resp = client.get(url, params=params)
+    assert resp.status_code == 200
+    assert calls["n"] == 1, f"{url} read model params {calls['n']}x; expected 1 (N+1 regression)"
+
+
 def test_player_profiles_filters(client, db_session):
     db_session.add_all([
         PlayerProfile(player_id="1", name="Finisher", team="HOME", actions=100,
