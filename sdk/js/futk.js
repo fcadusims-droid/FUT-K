@@ -32,6 +32,7 @@ export class FutK {
   story(id) { return this._get(`/matches/${id}/story`) }
   events(id) { return this._get(`/matches/${id}/events`) }
   simulate(id, minute, seed = 0) { return this._get(`/matches/${id}/simulate`, { minute, seed }) }
+  tactics(id, minute) { return this._get(`/matches/${id}/tactics`, { minute }) }
   replay2d(id) { return this._get(`/matches/${id}/replay2d`) }
   crosscheck(id) { return this._get(`/matches/${id}/crosscheck`) }
   fusionRecords(opts = {}) { return this._get('/fusion/records', opts) }

@@ -54,8 +54,8 @@ deterministic and honest by construction:
 | **Digital Match Twin (historical)** — the match reconstructed second by second from real recorded actions; ball and players animated from provider truth over the full 90'+ | ✅ shipped | `/matches/{id}/replay2d` + the 2D pitch |
 | **Inference Engine** — momentum, pressure, regimes, calibrated predictions, confidence, every number leakage-proven (the 73:15 test) | ✅ shipped | `fie/` core + the panel |
 | **Decision Intelligence (first step)** — What If? counterfactuals: remove a real event, re-run the engine, compare readings | ✅ shipped | `/matches/{id}/whatif` |
-| **Visual Intelligence** — replay / TV / analysis layers, activity zones, pressure glow, AI ticker, explain-on-pause | ✅ shipped | the replay UI |
-| **Tactical assistant** — deterministic Q&A over the engine's reading | ✅ shipped (descriptive) | `/matches/{id}/ask` |
+| **Visual Intelligence** — replay / TV / analysis / **tactics** layers: activity zones, pressure glow, engagement lines, territory, opportunity corridors, AI ticker, explain-on-pause | ✅ shipped | the replay UI, `/matches/{id}/tactics` |
+| **Tactical reasoning** — the intelligent field (engagement lines, territory, opportunity corridor with live probability) + deterministic Q&A | ✅ shipped | `/matches/{id}/tactics`, `/matches/{id}/ask` |
 | **Future Simulation Engine** — thousands of seeded forward simulations from the current state, bounded by the match's real remaining time; outcome distribution + opportunity windows (lane + timing) | ✅ shipped | `fie/simulation.py`, `/matches/{id}/simulate` |
 | **Live mode** — the same twin fed by live multi-source feeds through the fusion layer | 🔭 next | fusion + event bus trigger documented in `docs/ARCHITECTURE.md` |
 | **Strategic assistant** — "which substitution raises win probability most?" | 🔭 later | the future-simulation engine it needs now exists |

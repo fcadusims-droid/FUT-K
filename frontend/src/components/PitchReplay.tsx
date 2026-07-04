@@ -13,14 +13,17 @@
 // Modes: standard · tv (broadcast-minimal) · analysis (zones, momentum,
 // commentary log).
 
-import { useMemo, useState } from 'react'
-import { fetchExplain } from '../api'
+import { useEffect, useMemo, useState } from 'react'
+import { fetchExplain, fetchTactics } from '../api'
 import { PlayerCard } from './PlayerCard'
 import type {
-  ExplainPayload, MatchEvent2D, PanelState, StoryBeat, TwinItem,
+  ExplainPayload, MatchEvent2D, PanelState, StoryBeat, TacticalGeometry, TwinItem,
 } from '../types'
 
-type Mode = 'standard' | 'tv' | 'analysis'
+type Mode = 'standard' | 'tv' | 'analysis' | 'tactics'
+
+// Lane centre in a team's own attacking y-frame (StatsBomb: high y = left).
+const LANE_Y: Record<string, number> = { left: 74, central: 40, right: 6 }
 
 interface Props {
   matchId: string
@@ -63,6 +66,19 @@ export function PitchReplay({
   const [why, setWhy] = useState<ExplainPayload | null>(null)
   const [whyBusy, setWhyBusy] = useState(false)
   const [selected, setSelected] = useState<{ id: string; name: string | null } | null>(null)
+  const [tactics, setTactics] = useState<TacticalGeometry | null>(null)
+
+  // Tactics layer: fetch the intelligent-field geometry when the whole-minute
+  // changes (throttled — the geometry is a trailing-window read, not per-frame).
+  const wholeMinute = Math.floor(clock)
+  useEffect(() => {
+    if (mode !== 'tactics') return
+    let alive = true
+    fetchTactics(matchId, wholeMinute)
+      .then((g) => alive && setTactics(g))
+      .catch(() => alive && setTactics(null))
+    return () => { alive = false }
+  }, [mode, matchId, wholeMinute])
 
   const T = clock * 60 // seconds on the match clock
 
@@ -290,7 +306,7 @@ export function PitchReplay({
           </span>
         )}
         <span style={{ flex: 1 }} />
-        {(['standard', 'tv', 'analysis'] as Mode[]).map((m) => (
+        {(['standard', 'tv', 'analysis', 'tactics'] as Mode[]).map((m) => (
           <button key={m} onClick={() => setMode(m)}
                   style={m === mode ? { borderColor: 'var(--seq-450)' } : undefined}>
             {m === 'tv' ? 'TV' : m}
@@ -382,6 +398,51 @@ export function PitchReplay({
           </g>
         )}
 
+        {/* ── Tactics layer: the intelligent field ────────────────────── */}
+        {mode === 'tactics' && tactics && (() => {
+          const hx = px(tactics.teams.HOME.block_x, 'HOME')
+          const ax = px(tactics.teams.AWAY.block_x, 'AWAY')
+          const tl = tactics.top_lane
+          const attackRight = tl.team === 'HOME'
+          const yc = py(LANE_Y[tl.lane], tl.team)
+          const goalX = attackRight ? 118 : 2
+          const startX = attackRight ? 62 : 58
+          const arrowY = yc
+          const pct = Math.round(tactics.goal_next_10min * 100)
+          const laneColor = attackRight ? 'var(--home)' : 'var(--away)'
+          return (
+            <g>
+              {/* engagement lines: how high each team is playing */}
+              <line x1={hx} y1="2" x2={hx} y2="78" stroke="var(--home)"
+                    strokeWidth="0.5" strokeDasharray="2 1.5" opacity="0.8" />
+              <line x1={ax} y1="2" x2={ax} y2="78" stroke="var(--away)"
+                    strokeWidth="0.5" strokeDasharray="2 1.5" opacity="0.8" />
+              {/* territory bar (top): who is camped where */}
+              <rect x="0" y="-1.6" width={120 * tactics.territory_home} height="1.2"
+                    fill="var(--home)" opacity="0.85" />
+              <rect x={120 * tactics.territory_home} y="-1.6"
+                    width={120 * (1 - tactics.territory_home)} height="1.2"
+                    fill="var(--away)" opacity="0.85" />
+              {/* opportunity corridor: the lane the attacker is favouring,
+                  as a glowing channel + arrow toward goal, with the chance */}
+              <rect x={attackRight ? startX : goalX} y={arrowY - 8}
+                    width={Math.abs(goalX - startX)} height="16" rx="3"
+                    fill={laneColor} opacity="0.16" />
+              <line x1={startX} y1={arrowY} x2={attackRight ? goalX - 3 : goalX + 3}
+                    y2={arrowY} stroke={laneColor} strokeWidth="1.1" opacity="0.9" />
+              <path d={attackRight
+                ? `M ${goalX - 1} ${arrowY} l -3 -2 v 4 z`
+                : `M ${goalX + 1} ${arrowY} l 3 -2 v 4 z`}
+                fill={laneColor} opacity="0.95" />
+              <text x={(startX + goalX) / 2} y={arrowY - 3} textAnchor="middle"
+                    fontSize="4" fontWeight="800" fill="#ffffff"
+                    stroke="#173322" strokeWidth="0.4" paintOrder="stroke">
+                {pct}% next 10&#39;
+              </text>
+            </g>
+          )
+        })()}
+
         {/* live pass line while the ball is in flight */}
         {ball.seg && ball.seg.type !== 'Carry' && (
           <line x1={ball.seg.x0} y1={ball.seg.y0} x2={ball.x} y2={ball.y}
@@ -469,6 +530,22 @@ export function PitchReplay({
       {mode === 'analysis' && (
         <div style={{ marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
           {panel.explanation.claim}
+        </div>
+      )}
+      {mode === 'tactics' && tactics && (
+        <div style={{ marginTop: 6, fontSize: 13 }}>
+          <strong>
+            {tactics.top_lane.team === 'HOME' ? homeName : awayName}
+          </strong>{' '}
+          is working the <strong>{tactics.top_lane.lane}</strong> channel
+          ({Math.round(tactics.top_lane.share * 100)}% of its recent attacks) —
+          a goal in the next 10&#39; reads{' '}
+          <strong>{Math.round(tactics.goal_next_10min * 100)}%</strong>.{' '}
+          <span style={{ color: 'var(--text-muted)' }}>
+            Dashed lines are each team&#39;s line of engagement (mean recent
+            action height); the top bar is territory. All from real event
+            positions up to this minute.
+          </span>
         </div>
       )}
 

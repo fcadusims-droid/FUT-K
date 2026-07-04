@@ -52,6 +52,7 @@ Change decisions. See what would have happened."* Four modes, one engine:
 | **Analysis** | layers on top of the replay: activity zones from real event locations, pressure glow, momentum arrow, pause-and-ask ("why?" → the explainability cascade) | ✅ shipped (analysis mode + `why?`) |
 | **What If?** | counterfactuals: remove a goal or card and re-run the engine's pure functions from that minute — baseline vs counterfactual, honestly labeled a *re-reading, not a prophecy* | ✅ shipped (`/matches/{id}/whatif` + the What If? card) |
 | **Future Sim** | 10,000 seeded forward simulations from the current minute, bounded by the match's real remaining time; outcome distribution + opportunity windows | ✅ shipped (`/matches/{id}/simulate` + the Future Simulation card) |
+| **Tactics** | the intelligent field: engagement lines, territory, opportunity corridor with live goal probability — all from real event positions | ✅ shipped (`/matches/{id}/tactics` + the `tactics` pitch layer) |
 | **Live** | the same pitch fed by live multi-source feeds through the fusion layer | future (needs live sources; design doc Section 4) |
 
 The visual bet is deliberate: **no 3D, no fabricated player positions, no

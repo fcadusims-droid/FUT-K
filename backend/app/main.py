@@ -263,6 +263,32 @@ def simulate(
     return result
 
 
+@app.get("/matches/{match_id}/tactics")
+def tactics(
+    match_id: str,
+    minute: float = Query(..., ge=0, le=150),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Intelligent-field geometry for the Visual Twin at one minute.
+
+    Team block heights, corridor tendencies and territory from real event
+    locations (`fie.tactical.tactical_geometry`), joined with the calibrated
+    goal probability so the hottest lane can be drawn as an opportunity
+    corridor. Leakage-safe: events are sliced at `minute` first.
+    """
+    from fie.tactical import tactical_geometry
+
+    _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    params = get_active_params(db)
+    events_until = [e for e in events if e.minute <= minute]
+    geo = tactical_geometry(events_until, minute, tau=params.tau)
+    panel = panel_state(events, minute, match_id=match_id, params=params)
+    geo["goal_next_10min"] = panel["predictions"]["goal_next_10min"]
+    geo["momentum"] = panel["momentum"]
+    return geo
+
+
 @app.get("/matches/{match_id}/crosscheck")
 def crosscheck(match_id: str, db: Session = Depends(get_db)) -> dict:
     """Multi-provider verification of this fixture's facts (the fusion layer).
