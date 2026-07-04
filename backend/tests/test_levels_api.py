@@ -39,6 +39,42 @@ def test_similar_ranks_the_twin_first(client, league):
     assert rows[-1]["id"] == "m3"         # the quiet 0-0 is least similar
 
 
+def test_similar_memoizes_vectors_by_events_hash(client, db_session, monkeypatch):
+    """Perf: /similar memoizes each match's dynamics vector on its events digest,
+    so a second request recomputes nothing and returns identical results. Matches
+    carry a digest here to exercise the cache; fixtures without one bypass it."""
+    import app.main as main
+
+    main._VECTOR_CACHE.clear()
+    for i, goals in enumerate([[(10, "HOME"), (80, "AWAY")],
+                               [(12, "HOME"), (82, "AWAY")],
+                               [(30, "AWAY")]]):
+        mid = f"h{i}"
+        db_session.add(Match(id=mid, competition="11", match_date=f"2016-0{i + 1}-01",
+                             home_team=f"H{i}", away_team=f"A{i}", status="finished",
+                             home_goals_final=1, away_goals_final=1,
+                             events_hash=f"digest-{i}"))
+        for minute, team in goals:
+            db_session.add(MatchEvent(match_id=mid, minute=minute, team=team, type="goal"))
+    db_session.commit()
+
+    calls = {"n": 0}
+    real = main.match_vector
+
+    def counting(evs, *a, **k):
+        calls["n"] += 1
+        return real(evs, *a, **k)
+
+    monkeypatch.setattr(main, "match_vector", counting)
+
+    r1 = client.get("/matches/h0/similar").json()
+    after_first = calls["n"]
+    assert after_first == 3            # one vector computed per match with events
+    r2 = client.get("/matches/h0/similar").json()
+    assert calls["n"] == after_first   # second request: every vector served from cache
+    assert r1 == r2                    # identical results whether cached or freshly computed
+
+
 def test_ask_window_and_why(client, league):
     a = client.get("/matches/m1/ask", params={"q": "what happened after minute 55?"}).json()
     assert "Goal" in a["answer"] and a["intent"] == "window"

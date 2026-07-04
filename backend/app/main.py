@@ -594,6 +594,30 @@ def match_plugins(match_id: str, db: Session = Depends(get_db)) -> dict:
     return _run_plugins(events, get_active_params(db))
 
 
+# In-process memo of match dynamics vectors, keyed by (match_id, events_hash).
+# match_vector is a pure function of a match's events, so the deterministic
+# events_hash (set at ingest) is a correct cache key: re-ingesting a match
+# changes the digest and invalidates the entry. Matches without a digest bypass
+# the cache entirely, so a stale vector can never be served. Per-process,
+# bounded by the number of ingested matches.
+_VECTOR_CACHE: dict[tuple[str, str], list] = {}
+
+
+def _match_vector_cached(db: Session, m: Match):
+    """The match's dynamics vector, memoized on its events digest. Returns None
+    when the match has no events (nothing to embed)."""
+    key = (m.id, m.events_hash) if m.events_hash else None
+    if key is not None and key in _VECTOR_CACHE:
+        return _VECTOR_CACHE[key]
+    evs = _load_events(db, m.id)
+    if not evs:
+        return None
+    vec = match_vector(evs)
+    if key is not None:
+        _VECTOR_CACHE[key] = vec
+    return vec
+
+
 @app.get("/matches/{match_id}/similar")
 def similar(match_id: str, limit: int = Query(5, ge=1, le=20),
             db: Session = Depends(get_db)) -> list[dict]:
@@ -602,9 +626,9 @@ def similar(match_id: str, limit: int = Query(5, ge=1, le=20),
     all_matches = db.execute(select(Match)).scalars().all()
     vectors = {}
     for m in all_matches:
-        evs = _load_events(db, m.id)
-        if evs:
-            vectors[m.id] = match_vector(evs)
+        vec = _match_vector_cached(db, m)
+        if vec is not None:
+            vectors[m.id] = vec
     if match_id not in vectors:
         raise HTTPException(status_code=404, detail="no events for this match")
     target = vectors.pop(match_id)
