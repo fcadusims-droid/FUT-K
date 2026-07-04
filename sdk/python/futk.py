@@ -40,6 +40,15 @@ class FutK:
         with urllib.request.urlopen(url, timeout=self.timeout) as resp:
             return json.loads(resp.read())
 
+    def _post(self, path: str, **params):
+        query = {k: v for k, v in params.items() if v is not None}
+        url = self.base_url + path
+        if query:
+            url += "?" + urllib.parse.urlencode(query)
+        req = urllib.request.Request(url, method="POST")
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            return json.loads(resp.read())
+
     # -- matches ---------------------------------------------------------- #
     def matches(self, competition: str | None = None) -> list:
         return self._get("/matches", competition=competition)
@@ -72,6 +81,11 @@ class FutK:
         """Strategic Assistant: rank in-match approaches by win-prob delta."""
         return self._get(f"/matches/{match_id}/decisions",
                          minute=minute, team=team, seed=seed)
+
+    def live_replay_feed(self, match_id: str, upto: float) -> dict:
+        """Live Mode: stream the match's real events one at a time up to
+        `upto` minutes and return the live-computed state (event-bus path)."""
+        return self._post(f"/live/{match_id}/replay_feed", upto=upto)
 
     def vision(self, match_id: str, minute: float, evaluate: bool = False) -> dict:
         """Vision Engine: the continuous estimated state of every entity

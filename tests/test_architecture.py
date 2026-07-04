@@ -18,6 +18,7 @@ LAYERS = {"core": 0, "inference": 1, "knowledge": 2, "application": 3}
 
 MODULE_LAYER = {
     "events": "core",
+    "eventbus": "core",
     "indices": "core",
     "prediction": "core",
     "regime": "core",

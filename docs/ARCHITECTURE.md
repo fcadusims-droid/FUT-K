@@ -62,12 +62,12 @@ Rules for plugins:
 
 ## What we deliberately did NOT build (yet)
 
-- **Event bus** — today the panel is a *pure function* of the event stream;
-  every "listener" (narrative, prediction, confidence, story) is a
-  deterministic read of the same slice. A bus adds indirection without a
-  concurrent consumer. It becomes the right tool when live multi-source feeds
-  arrive (design doc Sections 4/16); until then, purity is simpler and easier
-  to test.
+- ~~**Event bus**~~ — **now built** (`fie.eventbus`), on its documented
+  trigger: Live Mode (`backend/app/live.py`) streams observations one at a
+  time, and the panel + Vision-Engine listeners react to the same published
+  event. It stayed deferred until a real concurrent consumer existed; that is
+  Live Mode. The bus is a pure, synchronous, deterministic pub/sub — the same
+  purity that makes the panel reproducible.
 - **Feature store** — Core functions *are* the feature definitions, computed
   on demand from persisted events; materializing them would duplicate state.
 - **Experiment tracking service** — `model_versions` (the learning loop's

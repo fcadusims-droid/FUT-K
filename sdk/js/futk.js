@@ -24,6 +24,16 @@ export class FutK {
     return resp.json()
   }
 
+  async _post(path, params = {}) {
+    const query = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null),
+    ).toString()
+    const resp = await fetch(`${this.baseUrl}${path}${query ? `?${query}` : ''}`,
+      { method: 'POST' })
+    if (!resp.ok) throw new Error(`FUT-K API ${resp.status} for ${path}`)
+    return resp.json()
+  }
+
   matches(competition) { return this._get('/matches', { competition }) }
   match(id) { return this._get(`/matches/${id}`) }
   state(id, minute) { return this._get(`/matches/${id}/state`, { minute }) }
@@ -33,6 +43,7 @@ export class FutK {
   events(id) { return this._get(`/matches/${id}/events`) }
   simulate(id, minute, seed = 0) { return this._get(`/matches/${id}/simulate`, { minute, seed }) }
   decisions(id, minute, team = 'HOME', seed = 0) { return this._get(`/matches/${id}/decisions`, { minute, team, seed }) }
+  liveReplayFeed(id, upto) { return this._post(`/live/${id}/replay_feed`, { upto }) }
   vision(id, minute, evaluate = false) { return this._get(`/matches/${id}/vision`, { minute, evaluate }) }
   tactics(id, minute) { return this._get(`/matches/${id}/tactics`, { minute }) }
   replay2d(id) { return this._get(`/matches/${id}/replay2d`) }
