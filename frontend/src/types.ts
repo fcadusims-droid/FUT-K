@@ -103,6 +103,18 @@ export interface CrossCheck {
   note?: string
 }
 
+export interface TacticalGeometry {
+  minute: number
+  territory_home: number
+  teams: {
+    HOME: { block_x: number; lanes: { left: number; central: number; right: number }; actions: number }
+    AWAY: { block_x: number; lanes: { left: number; central: number; right: number }; actions: number }
+  }
+  top_lane: { team: 'HOME' | 'AWAY'; lane: 'left' | 'central' | 'right'; share: number }
+  goal_next_10min: number
+  momentum: { home: number; away: number }
+}
+
 export interface OpportunityWindow {
   team: 'HOME' | 'AWAY'
   lane: 'left' | 'central' | 'right'

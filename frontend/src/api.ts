@@ -8,6 +8,7 @@ import type {
   PlayerProfile,
   SimulationResult,
   StoryBeat,
+  TacticalGeometry,
   TwinStream,
   WhatIfPayload,
 } from './types'
@@ -50,6 +51,9 @@ export const fetchTwinStream = (id: string) =>
 
 export const fetchCrossCheck = (id: string) =>
   get<CrossCheck>(`/matches/${id}/crosscheck`)
+
+export const fetchTactics = (id: string, minute: number) =>
+  get<TacticalGeometry>(`/matches/${id}/tactics?minute=${minute.toFixed(2)}`)
 
 export const fetchSimulation = (id: string, minute: number, seed = 0) =>
   get<SimulationResult>(

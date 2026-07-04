@@ -67,6 +67,11 @@ class FutK:
         bounded by the match's real remaining time. Deterministic per seed."""
         return self._get(f"/matches/{match_id}/simulate", minute=minute, seed=seed)
 
+    def tactics(self, match_id: str, minute: float) -> dict:
+        """Visual Twin intelligent-field geometry: engagement lines,
+        corridors, territory + the live goal probability."""
+        return self._get(f"/matches/{match_id}/tactics", minute=minute)
+
     def replay2d(self, match_id: str) -> dict:
         """The Digital Match Twin's dense on-ball stream (real trajectories)."""
         return self._get(f"/matches/{match_id}/replay2d")

@@ -43,6 +43,70 @@ def thirds_distribution(events, team: str, attack_right: bool = True) -> dict:
     return {"own": own / total, "mid": mid / total, "att": att / total}
 
 
+def tactical_geometry(events, minute: float, tau: float = 10.0,
+                      window: float = 15.0) -> dict:
+    """Top-down tactical read at ``minute``, from real event locations only.
+
+    The substrate for the Visual Twin's intelligent-field overlays. Everything
+    is measured from where players actually acted in the trailing ``window``
+    minutes — no tracking data, nothing invented.
+
+    Returns per team (``x``/``y`` in the team's own 0-100 attacking frame; the
+    caller maps to the stadium frame):
+
+    * ``block_x`` — decay-weighted mean x of the team's recent located actions:
+      how high up the pitch the team is currently playing (its line of
+      engagement).
+    * ``lanes`` — ``{left, central, right}`` share of the team's recent
+      attacking actions (the corridors it is using).
+    * ``actions`` — located actions counted in the window.
+
+    plus ``territory_home`` — HOME's share of recent attacking pressure
+    (``0.5`` = balanced), and ``top_lane`` — the (team, lane, share) the
+    attacking side is favouring most.
+    """
+    import math
+
+    from .indices import momentum_index
+
+    attack = {"shot", "shot_on_target", "goal", "corner"}
+    per = {}
+    for team in ("HOME", "AWAY"):
+        wsum = 0.0
+        xacc = 0.0
+        lanes = {"left": 0.0, "central": 0.0, "right": 0.0}
+        n = 0
+        for e in events:
+            if (e.team != team or e.x is None or e.minute > minute
+                    or e.minute < minute - window):
+                continue
+            w = math.exp(-(minute - e.minute) / tau)
+            xacc += w * e.x
+            wsum += w
+            n += 1
+            if e.type in attack and e.y is not None:
+                lane = ("left" if e.y >= 66.667
+                        else "right" if e.y < 33.333 else "central")
+                lanes[lane] += w
+        block_x = round(xacc / wsum, 2) if wsum else 50.0
+        ltot = sum(lanes.values())
+        lane_share = ({k: round(v / ltot, 3) for k, v in lanes.items()}
+                      if ltot else {k: 1 / 3 for k in lanes})
+        per[team] = {"block_x": block_x, "lanes": lane_share, "actions": n}
+
+    territory_home = round(momentum_index(events, minute, tau), 3)
+    attacker = "HOME" if territory_home >= 0.5 else "AWAY"
+    lanes = per[attacker]["lanes"]
+    top_lane_name = max(lanes, key=lanes.get)
+    return {
+        "minute": round(minute, 2),
+        "territory_home": territory_home,
+        "teams": per,
+        "top_lane": {"team": attacker, "lane": top_lane_name,
+                     "share": lanes[top_lane_name]},
+    }
+
+
 def _has_counter(events, team: str, attack_right: bool) -> bool:
     team_events = sorted(
         (e for e in events if e.team == team and e.x is not None),

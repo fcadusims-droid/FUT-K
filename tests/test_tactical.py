@@ -66,3 +66,29 @@ def test_collective_metrics_bounded(network):
     assert 0.0 <= cohesion(network) <= 1.0
     assert 0.0 <= fluidity(network) <= 1.0
     assert 0.0 <= team_robustness(network) <= 1.0
+
+
+def test_tactical_geometry_reads_real_positions():
+    """Block height, lanes and territory come only from located events."""
+    from fie.events import Event
+    from fie.tactical import tactical_geometry
+
+    def ev(minute, x, y, team, etype="pass"):
+        return Event(match_id="t", minute=float(minute), team=team, type=etype,
+                     x=float(x), y=float(y))
+
+    # HOME playing high (x~85) and attacking down the left (y high); AWAY deep.
+    events = [
+        ev(60, 82, 70, "HOME", "shot"), ev(62, 88, 74, "HOME", "corner"),
+        ev(64, 80, 72, "HOME", "shot_on_target"), ev(63, 86, 68, "HOME"),
+        ev(61, 25, 40, "AWAY"), ev(65, 30, 45, "AWAY"),
+    ]
+    g = tactical_geometry(events, minute=66.0, window=15.0)
+    assert g["teams"]["HOME"]["block_x"] > g["teams"]["AWAY"]["block_x"]  # higher line
+    assert g["teams"]["HOME"]["lanes"]["left"] > g["teams"]["HOME"]["lanes"]["right"]
+    assert g["territory_home"] > 0.5           # HOME has the recent pressure
+    assert g["top_lane"] == {"team": "HOME", "lane": "left",
+                             "share": g["teams"]["HOME"]["lanes"]["left"]}
+    # No located events in-window -> neutral, never a crash.
+    empty = tactical_geometry([], minute=10.0)
+    assert empty["territory_home"] == 0.5 and empty["teams"]["HOME"]["actions"] == 0

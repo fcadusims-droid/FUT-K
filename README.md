@@ -2,13 +2,24 @@
 
 **FUT-K is a Digital Football Twin** ([vision](./docs/VISION.md)): a living
 computational representation of a football match that reconstructs the past,
-understands the present, evaluates decisions (What If?), and turns tactical
-intelligence into a visual, interactive, explainable experience. Pick a real
-match and watch the engine read it minute by minute — who controls the game,
-what is likely to happen next (with calibrated probabilities and an honest
-confidence), and *why*.
+understands the present, simulates possible futures, and turns tactical
+intelligence into a visual, interactive, explainable experience.
 
 > *"See the game beyond the game."*
+
+**Capabilities**
+
+- ✓ **Digital Match Twin** — the match reconstructed second by second, ball and players animated from real recorded actions
+- ✓ **Match Intelligence** — momentum, pressure, regimes, calibrated goal probabilities with honest confidence
+- ✓ **Counterfactual Simulation** — What If? (remove an event, re-read) + a Monte-Carlo Future Simulation Engine
+- ✓ **Tactical Reasoning** — the intelligent field: engagement lines, territory, opportunity corridors
+- ✓ **Data Fusion Engine** — many providers reconciled into one deterministic truth, with provenance and dissent
+- ✓ **Explainable AI** — every claim traces to its evidence; ask the engine in plain language
+- ✓ **Learning Engine** — recalibrates on new data, promotes only when held-out metrics don't degrade
+- ✓ **Replay Intelligence** + **REST API** + **SDKs** (Python/JS) — every capability scriptable
+
+Pick a real match and watch the engine read it minute by minute — who controls
+the game, what is likely to happen next, and *why*.
 
 ![Match replay — plain-language panel and the narrated Match Story](docs/images/app-replay-panel.png)
 
@@ -69,11 +80,17 @@ comebacks, blown leads, late drama — across every ingested match:
   behind an **Analyst mode** toggle.
 - **Digital Match Twin** — the living 2D pitch: the full match (90'+ and
   extra time) animated from every recorded pass, carry and shot at 0.25×–32×,
-  in standard, minimalist **TV** or **analysis** mode (activity zones,
-  momentum arrow, pressure glow); pause anywhere and ask **why?** — the
-  engine explains the moment. Honest by construction: every coordinate is
-  provider truth or an interpolation between one player's own recorded
-  positions; nothing on the pitch is invented.
+  in standard, minimalist **TV**, **analysis** or **tactics** mode; pause
+  anywhere and ask **why?** — the engine explains the moment. Honest by
+  construction: every coordinate is provider truth or an interpolation between
+  one player's own recorded positions; nothing on the pitch is invented.
+- **Tactical Reasoning — the intelligent field** — the `tactics` layer draws,
+  from real event positions: each team's line of engagement (how high it's
+  playing), the territory split, and the **opportunity corridor** — the lane
+  the attacking side is working, as an arrow toward goal labelled with the
+  live goal probability.
+
+  ![Tactics layer — engagement lines, territory, and the opportunity corridor](docs/images/app-tactics.png)
 - **Future Simulation Engine** — from any minute, run 10,000 seeded
   Monte-Carlo simulations of the *remaining* match (a horizon derived from the
   match's real recorded duration — never a hardcoded 90) and see the outcome
