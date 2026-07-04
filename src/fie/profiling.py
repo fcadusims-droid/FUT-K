@@ -47,10 +47,39 @@ AVATAR_PROFILE_RANGES = {
 
 
 def new_record(player_id, name=None, team=None, position=None) -> dict:
-    """A fresh per-player accumulator record."""
+    """A fresh per-player accumulator record.
+
+    Beyond the on-ball counters it carries provenance: ``matches`` (how many
+    matches have contributed to this record) and ``sources`` (which datasets),
+    so a built profile can state how much real evidence — and from where — backs
+    it. Nothing here is ever inferred; the fields are filled only as real events
+    from real sources arrive.
+    """
     rec = {"player_id": str(player_id), "name": name, "team": team, "position": position}
     rec.update({field: 0 for field in COUNTER_FIELDS})
+    rec["matches"] = 0
+    rec["sources"] = set()
     return rec
+
+
+def profile_confidence(actions: int) -> float:
+    """Reliability of a DNA profile from its evidence volume, in ``[0, 1)``.
+
+    A saturating function of observed on-ball ``actions`` — the project's stated
+    reliability measure (Section 12): more real evidence means more confidence,
+    but never certainty. Anchored to ``MIN_ACTIONS`` so confidence crosses 0.5
+    exactly at the volume where an archetype first becomes assignable::
+
+        actions=0    -> 0.0     (no evidence)
+        actions=60   -> 0.5     (= MIN_ACTIONS, the archetype threshold)
+        actions=180  -> 0.75
+        actions=540  -> 0.9
+
+    This is a measurement of how much data supports the profile, not an estimate
+    of anything about the player — it fabricates nothing.
+    """
+    a = max(0, int(actions))
+    return round(a / (a + MIN_ACTIONS), 3)
 
 
 def _safe(a, b):
@@ -117,6 +146,11 @@ def build_profile(record: dict) -> dict:
     }
     profile["archetype"] = real_archetype(profile)
     profile["avatar"] = profile_avatar(profile)
+    # Provenance + evidence-based reliability (never fabricated): how much real
+    # data backs this profile, from which sources, and the derived confidence.
+    profile["matches"] = int(record.get("matches", 0))
+    profile["sources"] = sorted(record.get("sources") or ())
+    profile["confidence"] = profile_confidence(actions)
     return profile
 
 

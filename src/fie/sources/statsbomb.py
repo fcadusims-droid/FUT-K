@@ -151,15 +151,21 @@ def passing_records(raw_events, team_name, names=None):
     return records
 
 
-def accumulate_player_stats(raw_events, home_team, away_team, table=None):
+def accumulate_player_stats(raw_events, home_team, away_team, table=None, *, source=None):
     """Accumulate per-player counters (Section 12) from a match's raw events.
 
     Updates ``table`` (``{player_id: record}``) in place across matches so a whole
     competition's DNA can be built by calling this once per match.
+
+    ``source`` (optional) is the dataset these events came from (e.g.
+    ``"statsbomb"``): it is recorded as provenance, and each player seen in this
+    call has their ``matches`` count incremented once — the honest evidence base
+    a built profile reports alongside its confidence.
     """
     from ..profiling import new_record  # local import avoids a cycle at module load
 
     table = table if table is not None else {}
+    seen_this_match: set[str] = set()
     for e in raw_events:
         player = e.get("player") or {}
         pid = player.get("id")
@@ -176,6 +182,15 @@ def accumulate_player_stats(raw_events, home_team, away_team, table=None):
         if rec is None:
             rec = new_record(pid, player.get("name"), team, e.get("position", {}).get("name"))
             table[str(pid)] = rec
+
+        # Provenance: count this match once per player, and note the source.
+        rec.setdefault("matches", 0)
+        rec.setdefault("sources", set())
+        if str(pid) not in seen_this_match:
+            seen_this_match.add(str(pid))
+            rec["matches"] += 1
+            if source:
+                rec["sources"].add(source)
 
         etype = e.get("type", {}).get("name")
         if etype in ONBALL_TYPES:
@@ -474,4 +489,6 @@ class StatsBombSource(Source):
         raw_match = self._match_index()[str(match_id)]
         home = raw_match["home_team"]["home_team_name"]
         away = raw_match["away_team"]["away_team_name"]
-        return accumulate_player_stats(self.raw_events(match_id), home, away, table)
+        return accumulate_player_stats(
+            self.raw_events(match_id), home, away, table, source=self.name
+        )

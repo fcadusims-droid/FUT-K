@@ -69,6 +69,8 @@ def _upsert_profiles(session: Session, profiles: list[dict]) -> None:
                 progressive_pass=p["progressive_pass_share"],
                 key_pass_rate=p["key_pass_rate"], shot_share=p["shot_share"],
                 turnover_rate=p["turnover_rate"], archetype=p["archetype"],
+                matches=p.get("matches"), confidence=p.get("confidence"),
+                sources=",".join(p.get("sources") or ()),
             )
         )
 

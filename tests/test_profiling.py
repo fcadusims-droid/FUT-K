@@ -9,7 +9,13 @@ import pathlib
 import pytest
 
 from fie import db as fie_db
-from fie.profiling import MIN_ACTIONS, build_profile, profile_avatar, real_archetype
+from fie.profiling import (
+    MIN_ACTIONS,
+    build_profile,
+    profile_avatar,
+    profile_confidence,
+    real_archetype,
+)
 from fie.sources.statsbomb import accumulate_player_stats
 
 FIXTURE = json.loads(
@@ -94,15 +100,59 @@ def test_min_actions_constant_used():
     assert real_archetype(at) == "finisher"
 
 
+def test_profile_confidence_curve():
+    """Confidence saturates in [0, 1): zero with no evidence, 0.5 exactly at the
+    archetype threshold, strictly increasing, never certain."""
+    assert profile_confidence(0) == 0.0
+    assert profile_confidence(MIN_ACTIONS) == 0.5  # anchored to the archetype gate
+    assert profile_confidence(3 * MIN_ACTIONS) == 0.75
+    curve = [profile_confidence(a) for a in (0, 10, 60, 200, 1000)]
+    assert curve == sorted(curve) and len(set(curve)) == len(curve)  # strictly up
+    assert all(0.0 <= c < 1.0 for c in curve)
+    assert profile_confidence(-5) == 0.0  # defensive: never negative
+
+
+def test_provenance_tracked_across_matches():
+    """Match count and sources accumulate honestly across calls; a profile
+    reports how much real evidence — and from which datasets — backs it."""
+    table = {}
+    accumulate_player_stats(FIXTURE["events"], FIXTURE["home_team"],
+                            FIXTURE["away_team"], table, source="statsbomb")
+    accumulate_player_stats(FIXTURE["events"], FIXTURE["home_team"],
+                            FIXTURE["away_team"], table, source="statsbomb")
+    # Same source twice, two matches: matches counts to 2, source deduplicated.
+    assert table["100"]["matches"] == 2
+    assert table["100"]["sources"] == {"statsbomb"}
+    profile = build_profile(table["100"])
+    assert profile["matches"] == 2
+    assert profile["sources"] == ["statsbomb"]
+    assert profile["confidence"] == profile_confidence(profile["actions"])
+
+
+def test_no_source_leaves_provenance_empty():
+    """Without a declared source nothing is invented: sources stay empty while
+    the match count (real, observed) is still tracked."""
+    profile = build_profile(_table()["100"])  # _table() passes no source
+    assert profile["sources"] == []
+    assert profile["matches"] == 1
+
+
 def test_profile_sqlite_roundtrip():
-    """Profiles persist to and read back from the player_profiles table."""
-    profiles = [build_profile(rec) for rec in _table().values()]
+    """Profiles persist to and read back from the player_profiles table,
+    provenance and confidence included."""
+    table = accumulate_player_stats(
+        FIXTURE["events"], FIXTURE["home_team"], FIXTURE["away_team"], source="statsbomb"
+    )
+    profiles = [build_profile(rec) for rec in table.values()]
     conn = fie_db.connect(":memory:")
     fie_db.init_schema(conn)
     fie_db.insert_player_profiles(conn, profiles)
     n = conn.execute("SELECT COUNT(*) FROM player_profiles").fetchone()[0]
     assert n == 2
     row = conn.execute(
-        "SELECT goals, shots FROM player_profiles WHERE player_id = '100'"
+        "SELECT goals, shots, matches, sources, confidence "
+        "FROM player_profiles WHERE player_id = '100'"
     ).fetchone()
-    assert row == (1, 2)
+    assert row[:2] == (1, 2)
+    assert row[2] == 1 and row[3] == "statsbomb"           # provenance persisted
+    assert row[4] == profile_confidence(_table()["100"]["actions"])
