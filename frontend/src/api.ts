@@ -10,6 +10,7 @@ import type {
   SimulationResult,
   StoryBeat,
   TacticalGeometry,
+  VisionState,
   TwinStream,
   WhatIfPayload,
 } from './types'
@@ -55,6 +56,11 @@ export const fetchCrossCheck = (id: string) =>
 
 export const fetchTactics = (id: string, minute: number) =>
   get<TacticalGeometry>(`/matches/${id}/tactics?minute=${minute.toFixed(2)}`)
+
+export const fetchVision = (id: string, minute: number, evaluate = false) =>
+  get<VisionState>(
+    `/matches/${id}/vision?minute=${minute.toFixed(3)}${evaluate ? '&evaluate=true' : ''}`,
+  )
 
 export const fetchDecisions = (id: string, minute: number, team: string, seed = 0) =>
   get<DecisionReport>(

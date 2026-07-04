@@ -73,6 +73,12 @@ class FutK:
         return self._get(f"/matches/{match_id}/decisions",
                          minute=minute, team=team, seed=seed)
 
+    def vision(self, match_id: str, minute: float, evaluate: bool = False) -> dict:
+        """Vision Engine: the continuous estimated state of every entity
+        (position, confidence) at `minute`, with optional self-evaluation."""
+        return self._get(f"/matches/{match_id}/vision", minute=minute,
+                         evaluate=evaluate or None)
+
     def tactics(self, match_id: str, minute: float) -> dict:
         """Visual Twin intelligent-field geometry: engagement lines,
         corridors, territory + the live goal probability."""

@@ -263,6 +263,49 @@ def simulate(
     return result
 
 
+@app.get("/matches/{match_id}/vision")
+def vision(
+    match_id: str,
+    minute: float = Query(..., ge=0, le=150),
+    evaluate: bool = False,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Vision Engine: the continuous estimated state of every entity.
+
+    From the dense twin stream (real observations), returns each player's
+    estimated position, velocity and **confidence** at ``minute`` — held from
+    the last real touch, decaying with time unobserved, corrected whenever a
+    real observation lands. With ``evaluate=true`` it also returns the engine's
+    self-evaluation: how far its motion model predicted the next real touch,
+    versus assuming the entity stayed put (the honest §5.10 finding).
+    """
+    from fie.vision import estimate_positions, evaluate_prediction
+
+    from .twin import get_stream
+
+    m = _get_match(db, match_id)
+    stream = get_stream(db, m)
+    if stream is None:
+        raise HTTPException(status_code=404,
+                            detail="no twin stream for this match")
+    items = stream["items"]
+    at = minute * 60.0
+    entities = estimate_positions(items, at)
+    payload = {
+        "minute": round(minute, 2),
+        "entities": entities,
+        "n_entities": len(entities),
+        "note": ("Positions held from each player's last real touch, confidence "
+                 "decaying with time unobserved and reset on re-observation. On "
+                 "sparse event data this static-hold is the validated-best "
+                 "estimate; the kinematic model is ready for dense tracking "
+                 "feeds."),
+    }
+    if evaluate:
+        payload["self_evaluation"] = evaluate_prediction(items)
+    return payload
+
+
 @app.get("/matches/{match_id}/decisions")
 def decisions(
     match_id: str,

@@ -269,6 +269,29 @@ that each match completed. The engine (`fie/simulation.py`) takes this horizon
 as input and its Monte-Carlo provably converges to the analytic Poisson from
 the same calibrated rates (`tests/test_simulation.py`).
 
+### 5.10 Vision Engine self-evaluation (an honest negative)
+
+The Vision Engine maintains a continuous per-entity state (position, velocity,
+confidence) and grades its own predictions against the next real touch. Run
+over a 15-match sample (**48,740** predictions):
+
+| Predictor | Mean error | Median | p90 |
+|---|---|---|---|
+| Constant-velocity motion model | 15.1 units (~m) | 6.0 | 44.5 |
+| **Hold last position** (baseline) | **13.7 units** | — | — |
+
+The honest finding: on **sparse event data**, where a player's touches are on
+average ~40 seconds apart, extrapolating their velocity *at the instant of a
+touch* does **not** beat simply holding their last position — touches involve
+stopping and turning, so the kinematic signal is noise at that timescale. This
+held even after a drag sweep (the motion model only ever *approaches* the
+static baseline as velocity is damped to zero). So the production estimator
+**holds position and decays confidence**, correcting on each re-observation;
+the constant-velocity machinery is retained and unit-tested (it is correct
+physics and wins on genuinely moving entities) but stays off by default,
+ready for a **dense tracking feed** where velocities are real. A validated "no"
+outranks an unvalidated "yes" — the estimator does the thing the data supports.
+
 ---
 
 ## 6. Reproducibility

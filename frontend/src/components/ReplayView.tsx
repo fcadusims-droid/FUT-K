@@ -18,6 +18,7 @@ import { MiniCurves } from './MiniCurves'
 import { FutureSim } from './FutureSim'
 import { PitchReplay } from './PitchReplay'
 import { Strategy } from './Strategy'
+import { VisionPanel } from './VisionPanel'
 import { SimilarMatches } from './SimilarMatches'
 import { NetworkView } from './NetworkView'
 import { WhatIf } from './WhatIf'
@@ -241,6 +242,10 @@ export function ReplayView({ matchId, onBack, onOpenMatch }: Props) {
           homeName={homeName}
           awayName={awayName}
         />
+      </div>
+
+      <div className="card">
+        <VisionPanel matchId={matchId} minute={clock} />
       </div>
 
       <div className="card">

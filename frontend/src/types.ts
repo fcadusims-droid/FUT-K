@@ -103,6 +103,34 @@ export interface CrossCheck {
   note?: string
 }
 
+export interface VisionEntity {
+  name: string | null
+  x: number
+  y: number
+  vx: number
+  vy: number
+  confidence: number
+  age: number
+  observed: boolean
+}
+
+export interface VisionState {
+  minute: number
+  entities: Record<string, VisionEntity>
+  n_entities: number
+  note: string
+  self_evaluation?: {
+    n: number
+    entities: number
+    mean_error: number
+    median_error: number
+    p90_error: number
+    static_baseline_mean: number
+    beats_static_by: number
+    mean_gap_seconds: number
+  }
+}
+
 export interface Decision {
   key: string
   label: string

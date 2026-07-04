@@ -52,6 +52,7 @@ deterministic and honest by construction:
 |---|---|---|
 | **Football Data Fusion Engine** — many sources, one truth, per-field provenance and measured reliability | ✅ shipped | `fie/fusion.py`, 4 leagues, 1,372 fused fixtures |
 | **Digital Match Twin (historical)** — the match reconstructed second by second from real recorded actions; ball and players animated from provider truth over the full 90'+ | ✅ shipped | `/matches/{id}/replay2d` + the 2D pitch |
+| **Vision Engine** — a continuous, self-correcting state estimate: each entity held with decaying confidence between observations, corrected on re-observation, grading its own error against reality (from *"what's in this frame?"* to *"what is the most likely state of the match now?"*) | ✅ shipped (deterministic, on event data; the kinematic model is ready for a dense tracking feed) | `fie/vision.py`, `/matches/{id}/vision` |
 | **Inference Engine** — momentum, pressure, regimes, calibrated predictions, confidence, every number leakage-proven (the 73:15 test) | ✅ shipped | `fie/` core + the panel |
 | **Decision Intelligence (first step)** — What If? counterfactuals: remove a real event, re-run the engine, compare readings | ✅ shipped | `/matches/{id}/whatif` |
 | **Visual Intelligence** — replay / TV / analysis / **tactics** layers: activity zones, pressure glow, engagement lines, territory, opportunity corridors, AI ticker, explain-on-pause | ✅ shipped | the replay UI, `/matches/{id}/tactics` |

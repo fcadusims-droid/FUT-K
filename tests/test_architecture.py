@@ -31,6 +31,7 @@ MODULE_LAYER = {
     "fusion": "inference",
     "simulation": "inference",
     "strategy": "inference",
+    "vision": "inference",
     "players": "knowledge",
     "coaches": "knowledge",
     "tactical": "knowledge",
