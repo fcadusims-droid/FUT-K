@@ -5,6 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Football Intelligence Engine</title>
+    <!-- Apply the saved theme before first paint (no flash). Mirrors theme.ts. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('futk-theme')
+          if (t === 'light' || t === 'dark')
+            document.documentElement.setAttribute('data-theme', t)
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

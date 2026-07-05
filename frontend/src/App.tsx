@@ -3,6 +3,7 @@ import { Explore } from './components/Explore'
 import { MatchList } from './components/MatchList'
 import { PlayersView } from './components/PlayersView'
 import { ReplayView } from './components/ReplayView'
+import { ThemeToggle } from './components/ThemeToggle'
 import { navigate, routeParts, useHashRoute } from './router'
 
 const TABS: { section: string; label: string }[] = [
@@ -18,7 +19,10 @@ export default function App() {
 
   return (
     <>
-      <h1 style={{ cursor: 'pointer' }} onClick={() => navigate('/matches')}>FUT-K</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h1 style={{ cursor: 'pointer', margin: 0 }} onClick={() => navigate('/matches')}>FUT-K</h1>
+        <ThemeToggle />
+      </div>
       <p className="subtitle">
         The match intelligence terminal — open any match and understand it like
         a professional analyst.
