@@ -61,6 +61,53 @@ def humanize_panel(panel: dict, home: str, away: str) -> dict:
     }
 
 
+def transition_beat(prev: dict, panel: dict, home: str, away: str,
+                    goal_set=frozenset()) -> dict | None:
+    """The single story beat for one state -> state transition, or ``None``.
+
+    The shared kernel of both the post-match story and Live Mode's insights:
+    given two consecutive panel states it detects, in priority order, a goal
+    (score change), a regime shift that isn't just a goal echo, or a wide
+    momentum handover. Pure and deterministic — every beat traces to a real
+    change in the engine's reading, nothing invented.
+    """
+    minute = round(panel["minute"])
+
+    # Goals (attributed via the score change).
+    dh = panel["score"]["home"] - prev["score"]["home"]
+    da = panel["score"]["away"] - prev["score"]["away"]
+    if dh or da:
+        scorer = home if dh else away
+        return {
+            "minute": minute,
+            "headline": f"Goal — {scorer}",
+            "detail": f"{panel['score']['home']}–{panel['score']['away']}. "
+                      + humanize_panel(panel, home, away)["control"],
+        }
+
+    # Regime shifts that aren't just the goal echo.
+    if panel["regime"] != prev["regime"] and minute not in goal_set:
+        mom = panel["momentum"]["home"]
+        dom = home if mom >= 0.5 else away
+        phrase = REGIME_PHRASES.get(panel["regime"], "The pattern changed")
+        return {
+            "minute": minute,
+            "headline": "The game changed",
+            "detail": phrase.format(dom=dom, trail=dom) + ".",
+        }
+
+    # Momentum handover: control crossed sides by a wide margin.
+    if (prev["momentum"]["home"] - 0.5) * (panel["momentum"]["home"] - 0.5) < 0 \
+            and abs(panel["momentum"]["home"] - 0.5) > 0.2:
+        dom = home if panel["momentum"]["home"] > 0.5 else away
+        return {
+            "minute": minute,
+            "headline": "Momentum swings",
+            "detail": f"{dom} has taken control of the match.",
+        }
+    return None
+
+
 def match_story(timeline: list, goal_minutes: list, home: str, away: str) -> list:
     """Narrated story beats from the replay timeline (Section 17 as product).
 
@@ -77,40 +124,9 @@ def match_story(timeline: list, goal_minutes: list, home: str, away: str) -> lis
     goal_set = {round(g["minute"]) for g in goal_minutes}
     prev = timeline[0]
     for panel in timeline[1:]:
-        minute = round(panel["minute"])
-
-        # Goals (attributed via the score change).
-        dh = panel["score"]["home"] - prev["score"]["home"]
-        da = panel["score"]["away"] - prev["score"]["away"]
-        if dh or da:
-            scorer = home if dh else away
-            beats.append({
-                "minute": minute,
-                "headline": f"Goal — {scorer}",
-                "detail": f"{panel['score']['home']}–{panel['score']['away']}. "
-                          + humanize_panel(panel, home, away)["control"],
-            })
-
-        # Regime shifts that aren't just the goal echo.
-        elif panel["regime"] != prev["regime"] and minute not in goal_set:
-            mom = panel["momentum"]["home"]
-            dom = home if mom >= 0.5 else away
-            phrase = REGIME_PHRASES.get(panel["regime"], "The pattern changed")
-            beats.append({
-                "minute": minute,
-                "headline": "The game changed",
-                "detail": phrase.format(dom=dom, trail=dom) + ".",
-            })
-
-        # Momentum handover: control crossed sides by a wide margin.
-        elif (prev["momentum"]["home"] - 0.5) * (panel["momentum"]["home"] - 0.5) < 0 \
-                and abs(panel["momentum"]["home"] - 0.5) > 0.2:
-            dom = home if panel["momentum"]["home"] > 0.5 else away
-            beats.append({
-                "minute": minute,
-                "headline": "Momentum swings",
-                "detail": f"{dom} has taken control of the match.",
-            })
+        beat = transition_beat(prev, panel, home, away, goal_set)
+        if beat is not None:
+            beats.append(beat)
         prev = panel
 
     final = timeline[-1]

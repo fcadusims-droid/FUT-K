@@ -116,6 +116,7 @@ export interface LiveState {
   panel: PanelState
   vision: { n_entities: number; entities: Record<string, VisionEntity> }
   log: string[]
+  insights: StoryBeat[]
   matches_batch: boolean
 }
 

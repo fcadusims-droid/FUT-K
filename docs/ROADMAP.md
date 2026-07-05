@@ -57,6 +57,7 @@ source is now wired in**. Research + decision: [`DATA_SOURCES.md`](./DATA_SOURCE
 |---|---|---|---|
 | A live `Source` for **football-data.org** (`fie.sources.footballdata`) — v4 → normalized events, injectable loader, keyless + API-key tiers | L | ✅ | the only free live-capable API in the guide; verified against the real endpoint |
 | Wire it into Live Mode: `backend/app/livefeed.py` + `POST /live/{id}/footballdata` (idempotent polling) | M | ✅ | feeds only new events into the event-bus session |
+| **Live insights** — turn the observation stream into semantic beats (goal / regime shift / momentum swing) in real time, reusing the Match-Story kernel (`story.transition_beat`); surfaced in the snapshot + `LivePanel` | M | ✅ | the live twin reads the feed as match *understanding*, not a raw event log |
 | Free API key to unlock goal/card **events** (`FOOTBALL_DATA_API_KEY`) | S | ⬜ | user provides a free key — the one remaining external input |
 | Ingest more Big-5 seasons via the pipeline (`refresh_pair` → `recalibrate` with the held-out promotion gate) | M | ⬜ | promote only if held-out log loss doesn't degrade |
 | Live-stream validation (validation §7) | M | ⬜ | prove streamed state == batch panel on a real feed during a live match |
