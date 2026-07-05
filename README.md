@@ -46,9 +46,10 @@ Prerequisites: Python 3.11+, Node 20+, and a PostgreSQL database (SQLite works
 for a quick look).
 
 ```bash
-# 1. backend — API + engine
+# 1. backend — install the engine (fie) first, then the API service
+pip install -e .                     # the engine — standard-library only
+pip install -e "./backend[dev]"      # the FastAPI service (depends on fie)
 cd backend
-pip install -e ".[dev]"
 export DATABASE_URL="postgresql+psycopg://user:pw@localhost:5432/futk"   # or omit for SQLite
 
 # 2. ingest real matches (free StatsBomb open data; downloads on demand)
@@ -61,6 +62,9 @@ npm install
 npm run dev          # http://localhost:5173  (proxies /api -> :8000)
 ```
 
+New here? The full **[step-by-step walkthrough](#how-to-use-fut-k--step-by-step)**
+below explains every step and every screen.
+
 Open the app, pick a match, press **Play**.
 
 ![Match catalog](docs/images/app-match-catalog.png)
@@ -69,6 +73,171 @@ Open the app, pick a match, press **Play**.
 comebacks, blown leads, late drama — across every ingested match:
 
 ![Explore — historical queries](docs/images/app-explore.png)
+
+## How to use FUT-K — step by step
+
+A complete walkthrough, from an empty machine to reading a match like an analyst.
+Everything here runs on free, open data and needs no paid keys.
+
+### 1. Prerequisites
+
+- **Python 3.11+** and **Node 20+** (`python --version`, `node --version`).
+- **git**, to clone the repo.
+- A **PostgreSQL** database is recommended for real use, but you can skip it —
+  FUT-K falls back to a local **SQLite** file with zero setup, which is perfect
+  for a first look.
+- Internet access on first run: match data is downloaded on demand from
+  StatsBomb's free open-data repository.
+
+### 2. Get the code and install
+
+```bash
+git clone https://github.com/fcadusims-droid/FUT-K.git
+cd FUT-K
+
+pip install -e .                     # the engine (fie) — standard-library only
+pip install -e "./backend[dev]"      # the API service (FastAPI, SQLAlchemy)
+```
+
+> **Order matters:** the backend depends on the engine package `fie`, so install
+> `.` (the engine) first. Installing the backend on its own will fail to find
+> `fie`.
+
+### 3. Choose where data is stored
+
+FUT-K reads the `DATABASE_URL` environment variable.
+
+```bash
+# Option A — Postgres (recommended for real use)
+export DATABASE_URL="postgresql+psycopg://user:pw@localhost:5432/futk"
+
+# Option B — nothing to configure: omit DATABASE_URL and a local SQLite file
+# (backend/fie_backend.db) is created automatically.
+```
+
+### 4. Ingest some real matches
+
+Matches are pulled by competition/season id pairs. Run this from the `backend/`
+folder (the same `DATABASE_URL` the API will use):
+
+```bash
+cd backend
+python scripts/ingest.py --pairs "43/3" --limit 20        # 20 World Cup 2018 games
+# more examples (comma-separate to load several at once):
+#   --pairs "11/27"   La Liga 2015/16      --pairs "43/106"  World Cup 2022
+#   --pairs "55/282"  Euro 2024            --pairs "9/281"   Bundesliga 2023/24
+```
+
+The first run downloads events from StatsBomb (cached under `.sb_cache/` so
+re-runs are instant). It prints how many matches and player profiles it stored.
+
+### 5. Start the API
+
+```bash
+uvicorn app.main:app --port 8000
+```
+
+Check it's alive: open <http://localhost:8000/health> (should return
+`{"status":"ok"}`) and the interactive API docs at
+<http://localhost:8000/docs>.
+
+### 6. Start the web app
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev            # opens http://localhost:5173 (it proxies /api → :8000)
+```
+
+Open <http://localhost:5173>. If the catalog is empty, you haven't ingested any
+matches yet — go back to step 4.
+
+### 7. Use the app
+
+The app has four tabs across the top; every view has its own shareable URL
+(e.g. `#/players`, `#/match/<id>`).
+
+- **Matches** — the catalog. Filter by competition, then click a match to open
+  its replay.
+- **Inside a match (the replay):**
+  - Press **Play** to run the match minute by minute; change **speed**
+    (0.25×–32×) and drag the timeline to seek. The 2D pitch animates from real
+    recorded passes, carries and shots.
+  - Switch the pitch view: **standard**, **TV**, **analysis** (activity zones,
+    pressure), or **tactics** (engagement lines, territory, the opportunity
+    corridor with live goal probability).
+  - **Pause and click "why?"** on the pitch — the engine explains that moment.
+  - Toggle **Analyst mode** to reveal the full technical panel (regime,
+    confidence, momentum, prediction meters) instead of the plain-language view.
+  - Scroll for the cards: **Future Sim** (thousands of forward simulations from
+    this minute), **Strategy** (which approach raises the win chance most),
+    **What If?** (remove a goal/card and re-read the match), **Vision** (the
+    continuous estimated state), **Match Story**, **Similar matches**, the
+    passing **Network**, and **Ask** (plain-language questions).
+- **Players** — the Player DNA directory. Filter by archetype or drag the
+  **min-confidence** slider; each row shows its evidence-based confidence and
+  provenance (how many matches, which source). Click a player for the full card.
+- **Explore** — preset historical queries across every ingested match
+  (comebacks from two down, blown leads, late drama, card storms).
+- **Benchmarks** — the validated public numbers, each with the command that
+  reproduces it.
+
+### 8. (Optional) Follow a live match
+
+FUT-K can be fed a live match from the free
+[football-data.org](https://www.football-data.org/) API — see
+[`docs/DATA_SOURCES.md`](./docs/DATA_SOURCES.md) for the full setup. In short:
+
+```bash
+export FOOTBALL_DATA_API_KEY="your-free-key"   # unlocks live goal/card events
+# with the API running, poll a live match (fd_id from /v4/matches):
+curl -X POST "http://localhost:8000/live/mygame/footballdata?fd_id=<id>"
+```
+
+The live twin builds a running score, a goal/card timeline and live **insights**
+(momentum swings, "the game changed") — deterministic, nothing invented.
+
+### 9. Drive it from code
+
+Everything the UI does is a REST call, and there are thin SDKs:
+
+```bash
+curl "http://localhost:8000/matches"                          # list matches
+curl "http://localhost:8000/matches/<id>/state?minute=73"     # the panel at 73'
+curl "http://localhost:8000/matches/<id>/simulate?minute=80"  # forward sim
+```
+
+```python
+# run from sdk/python/ (or add it to your path); stdlib only, no install needed
+from futk import FutK
+fk = FutK("http://localhost:8000")
+print(fk.state("<match_id>", minute=73))
+```
+
+### 10. Run everything with Docker (alternative to steps 2–6)
+
+```bash
+docker compose up --build      # postgres + backend (:8000) + frontend (:8080)
+```
+
+Then open <http://localhost:8080> (you still ingest matches with the command in
+step 4, run inside the backend container).
+
+### Troubleshooting
+
+- **`No matching distribution found for fie`** — install the engine first:
+  `pip install -e .` from the repo root, then `pip install -e "./backend[dev]"`.
+- **Empty match catalog** — you haven't ingested anything yet (step 4), or the
+  API isn't running / not reachable at `:8000`.
+- **Ingest fails to download** — you need internet access on first run;
+  StatsBomb data is fetched on demand and then cached under `.sb_cache/`.
+- **Port already in use** — start the API on another port
+  (`uvicorn app.main:app --port 8001`) and update the frontend proxy target in
+  `frontend/vite.config.ts`.
+- **Live feed returns no events** — set a free `FOOTBALL_DATA_API_KEY`; without
+  a key only the scoreboard (score/minute) is available, not goal/card events.
 
 ## What you get
 
