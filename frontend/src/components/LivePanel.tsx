@@ -69,6 +69,22 @@ export function LivePanel({ matchId, minute, homeName, awayName }: Props) {
               {state.log.join('  ·  ')}
             </div>
           )}
+          {state.insights.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Live insights — the stream read as it happened
+              </div>
+              {state.insights.map((b, i) => (
+                <div key={`${b.minute}-${i}`} style={{ fontSize: 13, marginBottom: 2 }}>
+                  <span style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.minute}&#39;
+                  </span>{' '}
+                  <strong>{b.headline}</strong>
+                  {b.detail ? <span style={{ color: 'var(--text-secondary)' }}> — {b.detail}</span> : null}
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
             The event bus (deferred in the architecture until live feeds arrived)
             now delivers each observation to the panel and Vision-Engine

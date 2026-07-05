@@ -23,9 +23,18 @@ from fie.events import Event
 from fie.vision import estimate_positions
 
 from .panel import panel_state
+from .story import transition_beat
 
 # In-process session registry (single worker). match_id -> LiveMatch.
 _SESSIONS: dict = {}
+
+# The true pre-kick-off reading: 0-0, balanced, no regime yet. Used as the first
+# "previous state" so the opening goal / shift is detected without computing a
+# panel at minute 0.
+_BASELINE_PANEL = {
+    "minute": 0, "score": {"home": 0, "away": 0}, "regime": "NORMAL",
+    "momentum": {"home": 0.5, "away": 0.5},
+}
 
 
 class LiveMatch:
@@ -40,6 +49,8 @@ class LiveMatch:
         self.stream: list[dict] = []      # located observations for the Vision Engine
         self.minute = 0.0
         self.log: list[str] = []
+        self.insights: list[dict] = []    # semantic beats detected live
+        self._last_panel = _BASELINE_PANEL
         self.bus = EventBus()
         # The listeners: each reacts to the same published observation.
         self.bus.subscribe("observation", self._on_clock)
@@ -79,6 +90,16 @@ class LiveMatch:
             })
             self.stream.sort(key=lambda i: i["t"])
         self.bus.publish("observation", obs)
+
+        # Turn the raw observation stream into a live, semantic timeline: detect
+        # the beat (goal / regime shift / momentum swing) this observation caused,
+        # reusing the exact Match-Story kernel. Deterministic; nothing invented.
+        panel = panel_state(self.events, self.minute, match_id=self.match_id,
+                            params=self.params)
+        beat = transition_beat(self._last_panel, panel, self.home, self.away)
+        if beat is not None:
+            self.insights.append(beat)
+        self._last_panel = panel
         return self.snapshot()
 
     def snapshot(self) -> dict:
@@ -94,6 +115,7 @@ class LiveMatch:
             "panel": panel,
             "vision": {"n_entities": len(vision), "entities": vision},
             "log": self.log[-8:],
+            "insights": self.insights[-8:],
         }
 
 

@@ -40,7 +40,7 @@ Every mechanism in the engine is tested against synthetic data with a *known*
 generator, so pass/fail is objective. The full plan is
 [`docs/design/validation_test_plan.md`](../docs/design/validation_test_plan.md)
 — 89 numbered test IDs (`T-SS-NN`), all implemented, plus property-based tests
-(hypothesis) and multi-seed Monte-Carlo runs. **245 engine tests + 77 API tests
+(hypothesis) and multi-seed Monte-Carlo runs. **245 engine tests + 82 API tests
 green in CI** (Python 3.11 & 3.12).
 
 Reference numbers reproduced (see [`results/RESULTS.md`](./results/RESULTS.md),
