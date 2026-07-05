@@ -382,8 +382,8 @@ export function PitchReplay({
         )}
         {zones?.away && (
           <ellipse cx={zones.away.cx} cy={zones.away.cy} rx={zones.away.rx}
-                   ry={zones.away.ry} fill="#ffffff" opacity="0.22"
-                   stroke="#ffffff" strokeWidth="0.3" />
+                   ry={zones.away.ry} fill="var(--away)" opacity="0.18"
+                   stroke="var(--away)" strokeWidth="0.3" />
         )}
 
         {/* momentum arrow (analysis) */}
@@ -466,10 +466,13 @@ export function PitchReplay({
           return (
             <g key={d.id} onClick={() => setSelected({ id: d.id, name: d.name })}
                style={{ cursor: 'pointer' }} opacity={faded} filter="url(#dotShadow)">
-              <circle cx={d.x} cy={d.y} r={isCarrier ? 1.7 : 1.35}
-                      fill={isHome ? 'var(--home)' : '#f3f4f2'}
-                      stroke={isHome ? '#ffffff' : '#20242a'}
-                      strokeWidth={isCarrier ? 0.4 : 0.28} />
+              {/* Team A = blue, Team B = orange, each with a white ring so both
+                  pop on the green turf and stay clearly distinct from the
+                  white ball (which carries a dark ring instead). */}
+              <circle cx={d.x} cy={d.y} r={isCarrier ? 1.75 : 1.4}
+                      fill={isHome ? 'var(--home)' : 'var(--away)'}
+                      stroke="#ffffff"
+                      strokeWidth={isCarrier ? 0.5 : 0.35} />
               {mode !== 'tv' && d.recent < 6 && (
                 <text x={d.x} y={d.y - 2.2} textAnchor="middle" fontSize="2.6"
                       fontWeight="700" fill="#ffffff" stroke="#1c3a26"
@@ -486,7 +489,8 @@ export function PitchReplay({
           .filter((p) => p.minute <= clock && p.minute > clock - 1.2)
           .map((p, i) => (
             <circle key={i} cx={p.x} cy={p.y} r="1"
-                    fill={p.team === 'HOME' ? 'var(--home)' : '#f3f4f2'} />
+                    fill={p.team === 'HOME' ? 'var(--home)' : 'var(--away)'}
+                    stroke="#ffffff" strokeWidth="0.25" />
           ))}
 
         {/* card pins */}
@@ -499,9 +503,10 @@ export function PitchReplay({
                 stroke="#20242a" strokeWidth="0.15" />
         ))}
 
-        {/* the ball */}
+        {/* the ball — white with a strong dark ring, so it never blends into a
+            team dot (colored + white ring) or a pitch line */}
         <circle cx={sparse ? sparse.pos.x : ball.x} cy={sparse ? sparse.pos.y : ball.y}
-                r="1.1" fill="#ffffff" stroke="#20242a" strokeWidth="0.3"
+                r="1.15" fill="#ffffff" stroke="#111418" strokeWidth="0.45"
                 filter="url(#dotShadow)" />
 
         {/* goal flash */}
@@ -509,7 +514,7 @@ export function PitchReplay({
           <g opacity={Math.max(0, 1 - (clock - goalEvent.minute) / 1.4)}>
             <rect x="0" y="0" width="120" height="80" fill="#ffffff" opacity="0.12" />
             <text x="60" y="41.5" textAnchor="middle" fontSize="8" fontWeight="800"
-                  fill={goalEvent.team === 'HOME' ? 'var(--home)' : '#ffffff'}
+                  fill={goalEvent.team === 'HOME' ? 'var(--home)' : 'var(--away)'}
                   stroke="#173322" strokeWidth="0.5" paintOrder="stroke">
               GOAL {goalEvent.team === 'HOME' ? homeName : awayName}
             </text>

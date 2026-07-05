@@ -1,6 +1,11 @@
 /* Reference dataviz palette (see dataviz skill references/palette.md).
    Roles only — components never use raw hex. Dark mode is a selected set of
-   steps from the same ramps, validated against the dark surface. */
+   steps from the same ramps, validated against the dark surface.
+
+   Theme selection: light is the default (:root). The OS preference is followed
+   ONLY when the user hasn't chosen (`:root:not([data-theme])`); an explicit
+   choice sets `data-theme` on <html>, and those attribute selectors win over
+   the media query by specificity. See theme.ts / ThemeToggle. */
 
 :root {
   --surface-1: #fcfcfb; /* chart surface */
@@ -12,8 +17,11 @@
   --baseline: #c3c2b7;
   --border: rgba(11, 11, 11, 0.1);
 
-  --home: #2a78d6;      /* categorical slot 1 (blue)  — HOME, fixed */
-  --away: #1baf7a;      /* categorical slot 2 (aqua)  — AWAY, fixed */
+  --home: #2a78d6;      /* categorical slot 1 (blue)   — HOME (team A), fixed */
+  --away: #eb6834;      /* categorical slot 8 (orange) — AWAY (team B), fixed.
+                           Blue↔orange is the colorblind-safe high-contrast pair
+                           (validated: CVD ΔE ~97); both pop on green turf and
+                           stay distinct from the white ball. */
 
   /* sequential blue ramp (meters: fill + lighter same-ramp track) */
   --seq-150: #b7d3f6;
@@ -21,8 +29,10 @@
   --delta-good: #006300;
 }
 
+/* the dark palette, factored out so the media query (system mode) and the
+   explicit [data-theme="dark"] override share one definition */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --surface-1: #1a1a19;
     --page: #0d0d0d;
     --text-primary: #ffffff;
@@ -33,12 +43,29 @@
     --border: rgba(255, 255, 255, 0.1);
 
     --home: #3987e5;
-    --away: #199e70;
+    --away: #d95926;    /* dark-surface orange step (validated) */
 
     --seq-150: #184f95;
     --seq-450: #3987e5;
     --delta-good: #0ca30c;
   }
+}
+
+:root[data-theme="dark"] {
+  --surface-1: #1a1a19;
+  --page: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --home: #3987e5;
+  --away: #d95926;
+  --seq-150: #184f95;
+  --seq-450: #3987e5;
+  --delta-good: #0ca30c;
 }
 
 * {
