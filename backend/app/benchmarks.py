@@ -8,6 +8,20 @@ here without re-running the pipeline.
 
 BENCHMARKS = [
     {
+        "dataset": "Copa América 2024 (full tournament)",
+        "matches": 32,
+        "target": "final result (home/draw/away), in-play Future Sim",
+        "brier": 0.250,
+        "log_loss": None,
+        "calibration_gap": None,
+        "note": "P(true outcome): 0.34 at kick-off -> 0.75 at 85'; accuracy 47% -> 84%; "
+                "beats current-score-persists on Brier at every checkpoint "
+                "(0.250 vs 0.312 at 85') and the constant prior from 30' on; "
+                "leakage-audited in-run (erase-the-future, byte-identical)",
+        "source": "validation/results/RESULTS_OUTCOME.md",
+        "reproduce": "python scripts/outcome_accuracy.py --pairs 223/282 --n-sims 1000",
+    },
+    {
         "dataset": "Euro 2024 (modern era)",
         "matches": 51,
         "target": "goal in next 10 min (in-play)",

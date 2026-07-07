@@ -71,3 +71,24 @@ def test_lane_windows_reflect_recent_real_locations():
     # The most probable HOME window is on the left lane it has been using.
     assert home_windows[0]["lane"] == "left"
     assert home_windows[0]["eta_seconds"] >= 0
+
+
+def test_simulation_is_leakage_free_erase_the_future():
+    """The 73:15 discipline applied to the Future Sim: erasing every event
+    after the simulation minute must leave the output byte-identical, because
+    every read (momentum, cards, lanes) self-filters at ``state.minute``."""
+    import json
+
+    future = [
+        Event(match_id="m", minute=80.0, team="AWAY", type="goal", x=95.0, y=40.0),
+        Event(match_id="m", minute=84.0, team="AWAY", type="shot_on_target", x=90.0, y=45.0),
+        Event(match_id="m", minute=88.0, team="HOME", type="red_card"),
+    ]
+    full = _events() + future
+    truncated = [e for e in full if e.minute <= 70.0]
+
+    kw = dict(horizon_minutes=25.0, n_sims=400, seed=7, regime="NORMAL")
+    with_future = simulate_forward(_state(70.0), full, Params(), **kw)
+    without_future = simulate_forward(_state(70.0), truncated, Params(), **kw)
+    assert json.dumps(with_future, sort_keys=True) == \
+        json.dumps(without_future, sort_keys=True)
