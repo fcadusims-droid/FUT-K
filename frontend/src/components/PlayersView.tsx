@@ -68,7 +68,9 @@ export function PlayersView({ selectedId, onSelect }: Props) {
       </div>
 
       {selectedId && (
-        <PlayerCard playerId={selectedId} playerName={selectedName} onClose={() => onSelect(null)} />
+        <PlayerCard playerId={selectedId} playerName={selectedName}
+                    onClose={() => onSelect(null)}
+                    onOpenPlayer={(id) => onSelect(id)} />
       )}
 
       <div className="card" style={{ opacity: loading ? 0.6 : 1, marginTop: selectedId ? 12 : 0 }}>

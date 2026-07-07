@@ -7,6 +7,8 @@ import type {
   MatchSummary,
   PanelState,
   PlayerProfile,
+  ScoutRankings,
+  SimilarResponse,
   SimulationResult,
   LiveState,
   StoryBeat,
@@ -54,6 +56,28 @@ export const fetchWhatIf = (id: string, minute: number, type: string, team: stri
 
 export const fetchPlayerProfile = (playerId: string) =>
   get<PlayerProfile[]>(`/players/profiles?player_id=${playerId}`)
+
+export const fetchSimilarPlayers = (playerId: string, limit = 5) =>
+  get<SimilarResponse>(`/players/${playerId}/similar?limit=${limit}`)
+
+export interface ScoutFilters {
+  position?: string
+  maxAge?: number
+  minConfidence?: number
+  competition?: string
+  season?: string
+}
+
+export const fetchScoutRankings = (opts: ScoutFilters = {}) => {
+  const q = new URLSearchParams()
+  if (opts.position) q.set('position', opts.position)
+  if (opts.maxAge) q.set('max_age', String(opts.maxAge))
+  if (opts.minConfidence) q.set('min_confidence', String(opts.minConfidence))
+  if (opts.competition) q.set('competition', opts.competition)
+  if (opts.season) q.set('season', opts.season)
+  const qs = q.toString()
+  return get<ScoutRankings>(`/scout/rankings${qs ? `?${qs}` : ''}`)
+}
 
 export interface ProfileFilters {
   team?: string

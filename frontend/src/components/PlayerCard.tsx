@@ -1,26 +1,30 @@
 // Player DNA card: click any event on the pitch and meet the player behind
-// it — archetype and the profile metrics built from real event data.
+// it — archetype, the profile metrics built from real event data, verified
+// bio facts (Wikidata, with provenance), and the most similar profiles.
 
 import { useEffect, useState } from 'react'
-import { fetchPlayerProfile } from '../api'
-import type { PlayerProfile } from '../types'
+import { fetchPlayerProfile, fetchSimilarPlayers } from '../api'
+import type { PlayerProfile, SimilarPlayer } from '../types'
 
 interface Props {
   playerId: string
   playerName: string | null
   onClose: () => void
+  onOpenPlayer?: (id: string) => void
 }
 
 const pct = (v: number | null | undefined) =>
   v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`
 
-export function PlayerCard({ playerId, playerName, onClose }: Props) {
+export function PlayerCard({ playerId, playerName, onClose, onOpenPlayer }: Props) {
   const [profile, setProfile] = useState<PlayerProfile | null>(null)
+  const [similar, setSimilar] = useState<SimilarPlayer[]>([])
   const [missing, setMissing] = useState(false)
 
   useEffect(() => {
     let alive = true
     setProfile(null)
+    setSimilar([])
     setMissing(false)
     fetchPlayerProfile(playerId)
       .then((rows) => {
@@ -29,6 +33,9 @@ export function PlayerCard({ playerId, playerName, onClose }: Props) {
         else setMissing(true)
       })
       .catch(() => alive && setMissing(true))
+    fetchSimilarPlayers(playerId, 4)
+      .then((r) => alive && setSimilar(r.similar))
+      .catch(() => {})   // similarity needs >=60 actions; absent is fine
     return () => {
       alive = false
     }
@@ -76,6 +83,26 @@ export function PlayerCard({ playerId, playerName, onClose }: Props) {
         </p>
       ) : (
         <p style={{ color: 'var(--text-muted)', margin: '8px 0 0' }}>loading…</p>
+      )}
+
+      {similar.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Similar observed profiles (style, not quality)
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {similar.map((s) => (
+              <button
+                key={s.player_id}
+                onClick={() => onOpenPlayer?.(s.player_id)}
+                style={{ fontSize: 12 }}
+                title={`${s.team ?? ''} · ${s.archetype ?? ''}`}
+              >
+                {s.name ?? s.player_id} · {Math.round(s.similarity * 100)}%
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

@@ -16,6 +16,7 @@ from fie.calibration import backtest
 from fie.prediction import Params
 from fie.sources.statsbomb import (
     StatsBombSource,
+    accumulate_player_stats,
     events_from_statsbomb,
     match_dict_from_statsbomb,
 )
@@ -135,3 +136,24 @@ def test_sqlite_roundtrip():
     pairs = fie_db.prediction_pairs(conn)
     assert len(pairs) == len(result["pairs"])
     assert all(0.0 <= p <= 1.0 and h in (0, 1) for p, h in pairs)
+
+
+def test_penalty_shootout_period5_is_not_in_play():
+    """Shootout kicks (period 5) must not become goals/shots or profile stats —
+    counting them contradicts the recorded final score (seen on Copa América
+    2024 knockouts: 'goal events 5-6 != final 2-2')."""
+    shootout = [
+        {"minute": 120, "second": 30, "period": 5, "type": {"name": "Shot"},
+         "team": {"name": "Alpha"}, "player": {"id": 9, "name": "Taker"},
+         "location": [108, 40], "shot": {"outcome": {"name": "Goal"}}},
+    ]
+    in_play = [
+        {"minute": 45, "second": 0, "period": 2, "type": {"name": "Shot"},
+         "team": {"name": "Alpha"}, "player": {"id": 9, "name": "Taker"},
+         "location": [108, 40], "shot": {"outcome": {"name": "Goal"}}},
+    ]
+    events = events_from_statsbomb(shootout + in_play, "Alpha", "Beta", "m")
+    assert [e.type for e in events] == ["shot_on_target", "goal"]  # in-play only
+
+    table = accumulate_player_stats(shootout + in_play, "Alpha", "Beta")
+    assert table["9"]["goals"] == 1 and table["9"]["shots"] == 1

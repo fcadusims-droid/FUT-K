@@ -24,7 +24,7 @@ from fie.prediction import Params
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .ingest import ingest_match
+from .ingest import ingest_match, rebuild_season_profiles
 from .models import IngestionRun, Match, MatchEvent, ModelVersion
 from fie.sources.statsbomb import StatsBombSource
 
@@ -83,6 +83,12 @@ def refresh_pair(session: Session, competition_id: int, season_id: int,
         except Exception as exc:  # noqa: BLE001 - keep the pipeline going
             failed.append(f"{mid}: {exc}")
     session.commit()
+
+    if added:
+        # Keep player profiles in step with the data: rebuild this pair's
+        # season accumulation over every match now in the DB (cache-served —
+        # nothing is re-downloaded) and re-derive the global profiles.
+        rebuild_season_profiles(session, source, competition_id, season_id)
 
     notes = list(failed)
     for mid in added:

@@ -94,9 +94,16 @@ def _map_one(raw, team, minute, x, y, player_id, match_id):
 
 
 def events_from_statsbomb(raw_events, home_team, away_team, match_id):
-    """Convert a StatsBomb event array into sorted normalized ``Event`` objects."""
+    """Convert a StatsBomb event array into sorted normalized ``Event`` objects.
+
+    Period 5 (the penalty shootout) is excluded: shootout kicks are not in-play
+    events — counting them as goals would contradict the recorded final score
+    (measured on Copa América 2024 knockouts: "goal events 5-6 != final 2-2").
+    """
     out = []
     for raw in raw_events:
+        if raw.get("period") == 5:
+            continue  # penalty shootout — not in-play
         team_name = raw.get("team", {}).get("name")
         if team_name == home_team:
             team = "HOME"
@@ -167,6 +174,8 @@ def accumulate_player_stats(raw_events, home_team, away_team, table=None, *, sou
     table = table if table is not None else {}
     seen_this_match: set[str] = set()
     for e in raw_events:
+        if e.get("period") == 5:
+            continue  # penalty shootout — not in-play behavior
         player = e.get("player") or {}
         pid = player.get("id")
         if pid is None:
@@ -180,7 +189,10 @@ def accumulate_player_stats(raw_events, home_team, away_team, table=None, *, sou
             continue
         rec = table.get(str(pid))
         if rec is None:
-            rec = new_record(pid, player.get("name"), team, e.get("position", {}).get("name"))
+            # Store the REAL team name (not the HOME/AWAY side): a profile is
+            # about the player, and "Harry Kane — AWAY" tells a scout nothing.
+            rec = new_record(pid, player.get("name"), team_name,
+                             e.get("position", {}).get("name"))
             table[str(pid)] = rec
 
         # Provenance: count this match once per player, and note the source.

@@ -15,7 +15,8 @@ event-grade data, that limit is stated, not papered over.
 | Source | Reachable | Free tier | Granularity | Live? | Role in FUT-K |
 |---|---|---|---|---|---|
 | **football-data.org** (v4) | ✅ 200 | keyless (rate-limited) **+** free API key | match/aggregate: goals, cards, subs (minutes) | ✅ | **live feed** — `fie.sources.footballdata` |
-| **StatsBomb Open Data** | ✅ 200 | fully free | event-level: shots/passes/xy/xg | ❌ (historical) | primary history + player DNA (shipped) |
+| **StatsBomb Open Data** | ✅ 200 | fully free | event-level: shots/passes/xy/xg | ❌ (historical) | primary history + player DNA (shipped); **80 competition/season pairs measured live** incl. Copa América 2024, MLS 2023, Africa Cup 2023, Serie A, Premier League, Ligue 1 ×3, Argentina, Copa del Rey, Europa League and the only free youth tournament, **FIFA U20 World Cup 1979** |
+| **Wikidata** (MediaWiki API) | ✅ 200 | fully free (CC0) | biographical: birth date, height, position, citizenship | n/a | **Scout AI bios** — `fie.sources.wikidata`, occupation-filtered entity match, per-row QID provenance, disk cache + Retry-After backoff (`backend/scripts/enrich_bios.py`) |
 | **openfootball** (football.json) | ✅ 200 | public domain | results only (scores) | ❌ | optional historical results backfill |
 | **football-data.co.uk** | ✅ | free CSV | match stats + odds | ❌ | cross-provider fusion anchor (shipped) |
 | ScoreBat video API (v3) | ✅ but **deprecated** | free | video highlights only | ✅ (videos) | not used — no event data |

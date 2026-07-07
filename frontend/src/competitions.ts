@@ -17,6 +17,11 @@ export const COMPETITIONS: CompetitionTab[] = [
   { id: '43', season: '3', label: 'World Cup 2018' },
   { id: '16', season: '', label: 'Champions League finals' },
   { id: '11', season: '27', label: 'La Liga 2015/16' },
+  // Additional real StatsBomb open-data competitions (ingest to populate):
+  { id: '223', season: '282', label: 'Copa América 2024' },
+  { id: '44', season: '107', label: 'MLS 2023' },
+  { id: '1267', season: '107', label: 'Africa Cup 2023' },
+  { id: '1470', season: '274', label: 'U20 World Cup 1979' },
 ]
 
 export function competitionLabel(

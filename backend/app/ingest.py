@@ -13,10 +13,12 @@ import hashlib
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from fie.profiling import build_profiles
+from sqlalchemy import select
+
+from fie.profiling import COUNTER_FIELDS, build_profile
 from fie.sources.statsbomb import StatsBombSource
 
-from .models import Match, MatchEvent, PlayerProfile
+from .models import Match, MatchEvent, PlayerProfile, PlayerSeasonProfile
 
 
 def ingest_match(session: Session, source: StatsBombSource, match_id) -> str:
@@ -75,6 +77,89 @@ def _upsert_profiles(session: Session, profiles: list[dict]) -> None:
         )
 
 
+def _upsert_season_profiles(session: Session, table: dict,
+                            competition: str, season: str) -> None:
+    """Persist this ingest's accumulator as (player, competition, season) rows.
+
+    Raw counters are stored (additive), so the global profile is always
+    rebuildable as the exact sum of a player's season rows — the Player
+    Evolution Timeline's storage primitive.
+    """
+    for rec in table.values():
+        derived = build_profile(rec)
+        session.merge(
+            PlayerSeasonProfile(
+                player_id=rec["player_id"], competition=competition, season=season,
+                name=rec.get("name"), team=rec.get("team"),
+                position=rec.get("position"),
+                **{f: rec.get(f, 0) for f in COUNTER_FIELDS},
+                pass_accuracy=derived["pass_accuracy"],
+                progressive_pass=derived["progressive_pass_share"],
+                key_pass_rate=derived["key_pass_rate"],
+                shot_share=derived["shot_share"],
+                turnover_rate=derived["turnover_rate"],
+                archetype=derived["archetype"],
+                matches=derived.get("matches"), confidence=derived.get("confidence"),
+                sources=",".join(derived.get("sources") or ()),
+            )
+        )
+
+
+def rebuild_season_profiles(session: Session, source: StatsBombSource,
+                            competition_id: int, season_id: int) -> int:
+    """Rebuild one competition/season's player profiles from ALL its DB matches.
+
+    Deterministic and idempotent whatever subset was just added: the season
+    accumulation is always recomputed over every match of the pair present in
+    the DB, with raw events served from the on-disk cache (a match is never
+    re-downloaded). This is what keeps profiles correct when ``refresh_pair``
+    adds only the new matches. Returns the number of players profiled.
+    """
+    mids = [mid for (mid,) in session.execute(
+        select(Match.id).where(Match.competition == str(competition_id),
+                               Match.season == str(season_id))
+    )]
+    table: dict = {}
+    for mid in mids:
+        try:
+            source.player_stats(mid, table)
+        except Exception:  # noqa: BLE001 - a missing raw file skips one match
+            continue
+    _upsert_season_profiles(session, table, str(competition_id), str(season_id))
+    rebuild_global_profiles(session, set(table.keys()))
+    session.commit()
+    return len(table)
+
+
+def rebuild_global_profiles(session: Session, player_ids: set[str]) -> list[dict]:
+    """Rebuild each player's global profile as the sum of their season rows.
+
+    Cross-competition accumulation: a player seen in the World Cup AND La Liga
+    gets one profile over all of it (previously the last ingest overwrote the
+    global row). Counters are summed, matches added, sources unioned, and the
+    rates/archetype/confidence re-derived by the validated ``build_profile``.
+    """
+    rebuilt = []
+    for pid in sorted(player_ids):
+        rows = session.execute(
+            select(PlayerSeasonProfile).where(PlayerSeasonProfile.player_id == pid)
+        ).scalars().all()
+        if not rows:
+            continue
+        latest = max(rows, key=lambda r: (r.season or "", r.competition or ""))
+        record = {
+            "player_id": pid, "name": latest.name, "team": latest.team,
+            "position": latest.position,
+            "matches": sum(r.matches or 0 for r in rows),
+            "sources": sorted({s for r in rows for s in (r.sources or "").split(",") if s}),
+        }
+        for f in COUNTER_FIELDS:
+            record[f] = sum(getattr(r, f) or 0 for r in rows)
+        rebuilt.append(build_profile(record))
+    _upsert_profiles(session, rebuilt)
+    return rebuilt
+
+
 def ingest_competition(
     session: Session,
     competition_id: int,
@@ -94,22 +179,21 @@ def ingest_competition(
     if limit:
         raw_matches = raw_matches[:limit]
 
-    table: dict = {}
     ingested, skipped = [], []
     for raw in raw_matches:
         mid = raw["match_id"]
         try:
             ingested.append(ingest_match(session, source, mid))
-            source.player_stats(mid, table)
         except Exception as exc:  # noqa: BLE001 - keep the pipeline going
             skipped.append((mid, str(exc)))
     session.commit()
 
-    profiles = build_profiles(table)
-    _upsert_profiles(session, profiles)
-    session.commit()
+    # Profiles: season rows (the evolution timeline) rebuilt over every match
+    # of this pair in the DB, then the global profile as the exact sum of each
+    # touched player's season rows.
+    n_profiles = rebuild_season_profiles(session, source, competition_id, season_id)
 
     return {
         "competition_id": competition_id, "season_id": season_id,
-        "ingested": ingested, "skipped": skipped, "profiles": len(profiles),
+        "ingested": ingested, "skipped": skipped, "profiles": n_profiles,
     }
