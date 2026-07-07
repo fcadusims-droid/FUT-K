@@ -128,8 +128,14 @@ def test_rankings_cohort_percentiles_and_age_filter(client, two_competitions, db
 
 
 def test_enrich_bios_skips_existing_and_never_guesses(db_session, two_competitions):
+    import pathlib
     import sys
-    sys.path.insert(0, "scripts")
+
+    # Absolute path: the app workflow runs pytest from the repo root, the
+    # backend workflow from backend/ — a CWD-relative "scripts" breaks one.
+    scripts_dir = str(pathlib.Path(__file__).resolve().parents[1] / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
     from enrich_bios import enrich
     from fie.sources.wikidata import WikidataSource
 
