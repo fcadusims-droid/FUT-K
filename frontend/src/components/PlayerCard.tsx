@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { fetchPlayerProfile, fetchSimilarPlayers } from '../api'
 import type { PlayerProfile, SimilarPlayer } from '../types'
+import { pct } from '../format'
 
 interface Props {
   playerId: string
@@ -13,8 +14,6 @@ interface Props {
   onOpenPlayer?: (id: string) => void
 }
 
-const pct = (v: number | null | undefined) =>
-  v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`
 
 export function PlayerCard({ playerId, playerName, onClose, onOpenPlayer }: Props) {
   const [profile, setProfile] = useState<PlayerProfile | null>(null)

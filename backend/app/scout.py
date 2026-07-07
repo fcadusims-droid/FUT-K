@@ -11,17 +11,14 @@ from __future__ import annotations
 
 from datetime import date
 
+# The archetype-eligibility floor (fie.profiling) doubles as the default
+# cohort floor for scouting reads — one source of truth, imported not copied.
+from fie.profiling import MIN_ACTIONS
 from fie.scouting import age_on, percentile, scout_index, similar_players
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from sqlalchemy import func
-
 from .models import Match, PlayerBio, PlayerProfile, PlayerSeasonProfile
-
-# Below this evidence volume a profile is "insufficient_data" (fie.profiling);
-# scouting reads use it as the default cohort floor.
-MIN_ACTIONS = 60
 
 SIMILARITY_NOTE = (
     "Similarity of observed behavioral profile (normalized rates) — proximity "

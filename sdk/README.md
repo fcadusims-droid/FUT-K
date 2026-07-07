@@ -51,10 +51,13 @@ const twins = await fk.similar('7525')
 | strategy | `GET /matches/{id}/decisions?minute=&team=&seed=` |
 | vision | `GET /matches/{id}/vision?minute=&evaluate=` |
 | live | `POST /live/{id}/start · /observe · /replay_feed?upto=`, `GET /live/{id}/state` |
+| live feed | `POST /live/{id}/footballdata?fd_id=` (free football-data.org source) |
 | search | `GET /search?q=`, `GET /matches/{id}/similar` |
 | ask | `GET /matches/{id}/ask?q=` |
 | team | `GET /teams/{team}/evolution` |
-| player | `GET /players/profiles` |
+| player | `GET /players/profiles`, `GET /players/{id}/similar`, `GET /players/{id}/evolution` |
+| scout | `GET /scout/rankings?position=&max_age=&min_confidence=` |
+| model | `GET /model/versions` (learning-loop history) |
 | network | `GET /matches/{id}/network?side=` |
 | insights | `GET /insights/{preset}` |
 | benchmarks | `GET /benchmarks` |

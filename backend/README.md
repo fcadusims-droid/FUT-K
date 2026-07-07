@@ -6,9 +6,13 @@ package owns persistence (production schema, Section 6) and the HTTP layer.
 
 ## Setup
 
+The backend depends on the engine package `fie` (in `../src`), which is not on
+PyPI — install it first, from the repo root:
+
 ```bash
+pip install -e .                  # the engine (fie)
+pip install -e "./backend[dev]"   # this service
 cd backend
-pip install -e ".[dev]"
 ```
 
 ## Database
@@ -68,7 +72,15 @@ uvicorn app.main:app --reload
 - `POST /live/{id}/start`, `POST /live/{id}/observe`, `GET /live/{id}/state`,
   `POST /live/{id}/replay_feed?upto=` — Live Mode: stream observations one at a
   time through the event bus; the streamed state provably equals the batch panel
-- `GET /players/profiles?team=&archetype=&min_actions=` — player DNA profiles
+- `POST /live/{id}/footballdata?fd_id=` — feed a live session from the free
+  football-data.org API (idempotent polling; see `docs/DATA_SOURCES.md`)
+- `GET /players/profiles?team=&archetype=&min_actions=&min_confidence=` —
+  player DNA profiles with evidence-based confidence and provenance
+- `GET /players/{id}/similar` · `GET /players/{id}/evolution` — Scout AI:
+  behavioral similarity and the season-by-season evolution timeline
+- `GET /scout/rankings?position=&max_age=&min_confidence=` — the Scout radar
+  (transparent index over the ingested cohort; see `docs/SCOUT.md`)
+- `GET /model/versions` — the learning loop's audited version history
 - `GET /fusion/records` — cross-provider fused match records with per-field
   provenance (populate with `python scripts/ingest_fused.py`)
 

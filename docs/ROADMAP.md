@@ -15,7 +15,7 @@ Effort: S (hours) · M (days) · L (weeks+).
 ## Diagnosis
 
 The engine is far ahead of the app. The validated core (`src/fie`, leakage-safe
-by construction) and ~25 API endpoints already expose momentum, regimes,
+by construction) and ~38 API endpoints already expose momentum, regimes,
 calibrated predictions, fusion, future simulation, the strategic assistant, the
 vision engine, live mode and player DNA. The biggest lever is **surfacing** that
 capability in the product, then broadening data coverage and going live.

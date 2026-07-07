@@ -29,8 +29,10 @@
   --delta-good: #006300;
 }
 
-/* the dark palette, factored out so the media query (system mode) and the
-   explicit [data-theme="dark"] override share one definition */
+/* The dark palette appears twice below — once under the media query (system
+   mode) and once under the explicit [data-theme="dark"] override. CSS cannot
+   share a declaration block between a media query and a selector, so KEEP THE
+   TWO BLOCKS IDENTICAL when editing either. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --surface-1: #1a1a19;

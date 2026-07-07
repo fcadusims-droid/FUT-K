@@ -157,8 +157,9 @@ matches yet — go back to step 4.
 
 ### 7. Use the app
 
-The app has four tabs across the top; every view has its own shareable URL
-(e.g. `#/players`, `#/match/<id>`).
+The app has five tabs across the top; every view has its own shareable URL
+(e.g. `#/players`, `#/match/<id>`), and the header has a theme toggle
+(Auto / Light / Dark).
 
 - **Matches** — the catalog. Filter by competition, then click a match to open
   its replay.
@@ -179,7 +180,11 @@ The app has four tabs across the top; every view has its own shareable URL
     passing **Network**, and **Ask** (plain-language questions).
 - **Players** — the Player DNA directory. Filter by archetype or drag the
   **min-confidence** slider; each row shows its evidence-based confidence and
-  provenance (how many matches, which source). Click a player for the full card.
+  provenance (how many matches, which source). Click a player for the full card
+  (with verified bio facts and the most similar observed profiles).
+- **Scout** — the discovery radar: the ingested cohort ranked by a transparent
+  scouting index, with position / max-age / confidence filters. Age filters use
+  only verified birth dates (see [`docs/SCOUT.md`](./docs/SCOUT.md)).
 - **Explore** — preset historical queries across every ingested match
   (comebacks from two down, blown leads, late drama, card storms).
 - **Benchmarks** — the validated public numbers, each with the command that

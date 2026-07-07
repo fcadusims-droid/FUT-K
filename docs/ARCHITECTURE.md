@@ -15,7 +15,8 @@ test that fails the build if anyone breaks it.
 │               (reads the model → produces understanding)    │
 ├────────────────────────────────────────────────────────────┤
 │ INFERENCE     fie.learning · fie.learned · fie.ratings      │
-│               fie.fusion · fie.simulation · fie.plugins     │
+│               fie.fusion · fie.simulation · fie.strategy    │
+│               fie.vision · fie.scouting · fie.plugins       │
 │               (fitting, learning, fusion, simulation)       │
 ├────────────────────────────────────────────────────────────┤
 │ CORE          fie.events · fie.indices · fie.prediction     │

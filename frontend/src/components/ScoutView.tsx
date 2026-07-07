@@ -7,13 +7,12 @@
 import { useEffect, useState } from 'react'
 import { fetchScoutRankings } from '../api'
 import type { ScoutRankings } from '../types'
+import { pct } from '../format'
 
 interface Props {
   onSelect: (id: string) => void
 }
 
-const pct = (v: number | null | undefined) =>
-  v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`
 
 export function ScoutView({ onSelect }: Props) {
   const [position, setPosition] = useState('')

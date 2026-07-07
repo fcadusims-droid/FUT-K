@@ -40,11 +40,11 @@ that we sit below the closing line.
    matches — "comebacks from 2 down", "wildest momentum swings" — turning the
    engine into a query system.
 
-## The four modes (product direction)
+## The modes (product direction)
 
 FUT-K is not a stats site with charts; it is a **digital twin of the match**
 you can explore. The slogan: *"Relive any match. Stop time. Ask questions.
-Change decisions. See what would have happened."* Four modes, one engine:
+Change decisions. See what would have happened."* Six modes, one engine:
 
 | Mode | What it is | Status |
 |---|---|---|

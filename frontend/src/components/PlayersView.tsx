@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react'
 import { fetchPlayerProfiles } from '../api'
 import type { PlayerProfile } from '../types'
+import { pct } from '../format'
 import { PlayerCard } from './PlayerCard'
 
 interface Props {
@@ -16,8 +17,6 @@ interface Props {
 // The descriptive archetypes the profiling layer can assign (fie/profiling.py).
 const ARCHETYPES = ['finisher', 'creator', 'balanced', 'conservative', 'impulsive']
 
-const pct = (v: number | null | undefined) =>
-  v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`
 
 export function PlayersView({ selectedId, onSelect }: Props) {
   const [minConfidence, setMinConfidence] = useState(0)
