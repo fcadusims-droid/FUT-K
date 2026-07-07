@@ -324,7 +324,7 @@ StatsBomb open data ──ingest──> PostgreSQL ──FastAPI──> React re
                                       │
                                engine: src/fie
                     (pure-Python, standard-library only,
-                     258 tests, leakage-safe by construction)
+                     259 tests, leakage-safe by construction)
 ```
 
 | Directory | What it is |
@@ -346,7 +346,7 @@ results (full methodology, tables, and reproduction commands in
 
 | Claim | Evidence |
 |---|---|
-| Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 346 tests green in CI |
+| Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 348 tests green in CI |
 | No information leakage | the **73:15 test** (§ below): 5,499 erase-the-future comparisons over all 611 matches, 100% byte-identical — enforced at engine **and** HTTP level on every push |
 | Calibrated on real football | walk-forward on WC 2018 (fitting closes a wrong prior: gap 0.040 → 0.025) **and** on all 380 La Liga 2015/16 matches (a right prior stays right: gap 0.009) |
 | **Externally anchored** | on real Bet365 odds, the ordering is exactly right: naive baseline (LL 1.050) < Elo (1.007) < **engine's Poisson (0.976)** < market (0.916) — sane machinery, no market-beating claims |
@@ -404,8 +404,11 @@ python scripts/prove_no_leakage.py     # exits non-zero on any leakage
 ```
 
 And the property is not a one-off audit: it fails the build on every push —
-T-20-04 at the engine level (`pytest tests/test_calibration.py -k leak`) and
-the HTTP-level twin (`cd backend && pytest tests/test_replay_api.py -k leak`).
+T-20-04 at the engine level (`pytest tests/test_calibration.py -k leak`), the
+HTTP-level twin (`cd backend && pytest tests/test_replay_api.py -k leak`), and
+the same erase-the-future gate on the **Future Simulation** path (engine and
+`/simulate` endpoint). Measured predictive precision of that leakage-free sim
+against known results: validation §5.11.
 
 One honest boundary: in the 2D **replay** the ball glides toward the *next*
 recorded touchpoint — that uses the future, because a replay is a

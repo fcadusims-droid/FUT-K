@@ -58,3 +58,20 @@ def test_simulate_near_full_time_has_short_horizon(client, db_session):
     mid = _seed_match(db_session, last_second=5748.0)
     body = client.get(f"/matches/{mid}/simulate?minute=95&n_sims=2000&seed=1").json()
     assert body["horizon_minutes"] < 1.0     # almost no real time left
+
+
+def test_simulate_is_leakage_safe_over_http(client, db_session):
+    """Erase-the-future at the API level: adding events AFTER the simulation
+    minute must not change /simulate's output at that minute (73:15 discipline
+    on the Future Sim path)."""
+    mid = _seed_match(db_session, mid="s-leak")
+    before = client.get(f"/matches/{mid}/simulate?minute=65&n_sims=500&seed=3").json()
+
+    db_session.add(MatchEvent(match_id=mid, minute=80.0, team="AWAY", type="goal",
+                              x=95.0, y=40.0))
+    db_session.add(MatchEvent(match_id=mid, minute=88.0, team="HOME", type="red_card",
+                              x=50.0, y=40.0))
+    db_session.commit()
+
+    after = client.get(f"/matches/{mid}/simulate?minute=65&n_sims=500&seed=3").json()
+    assert before == after
