@@ -789,6 +789,62 @@ def insights(query: str, team: str | None = None, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.get("/players/{player_id}/similar")
+def player_similar(player_id: str, limit: int = Query(5, ge=1, le=20),
+                   db: Session = Depends(get_db)) -> dict:
+    """Scout AI: players whose observed behavioral DNA resembles this one.
+
+    Similarity of playing profile on real event data — not current quality,
+    not a potential prediction (the payload says so).
+    """
+    from .scout import similar as scout_similar
+
+    result = scout_similar(db, player_id, limit)
+    if result is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no profile with >=60 actions for {player_id}")
+    return result
+
+
+@app.get("/players/{player_id}/evolution")
+def player_evolution(player_id: str, db: Session = Depends(get_db)) -> dict:
+    """Scout AI: the player's season-by-season evolution timeline + bio."""
+    from .scout import evolution as scout_evolution
+
+    result = scout_evolution(db, player_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"no data for player {player_id}")
+    return result
+
+
+@app.get("/scout/rankings")
+def scout_rankings(
+    position: str | None = None,
+    max_age: float | None = Query(None, ge=14, le=45),
+    min_actions: int = Query(60, ge=0),
+    min_confidence: float = Query(0.0, ge=0.0, le=1.0),
+    competition: str | None = None,
+    season: str | None = None,
+    limit: int = Query(25, ge=1, le=100),
+    on_date: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Scout AI radar: a real cohort ranked by the transparent scout index.
+
+    Percentiles are computed within the actually-ingested cohort; age comes
+    only from verified bios (Wikidata) — filtering by age excludes players
+    whose birth date is unknown rather than guessing it. ``on_date`` fixes the
+    "age as of" date for reproducible results (default: today).
+    """
+    from .scout import rankings as scout_rankings_impl
+
+    return scout_rankings_impl(
+        db, position=position, max_age=max_age, min_actions=min_actions,
+        min_confidence=min_confidence, competition=competition, season=season,
+        limit=limit, on_date=on_date,
+    )
+
+
 @app.get("/players/profiles")
 def player_profiles(
     team: str | None = None,

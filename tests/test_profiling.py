@@ -156,3 +156,9 @@ def test_profile_sqlite_roundtrip():
     assert row[:2] == (1, 2)
     assert row[2] == 1 and row[3] == "statsbomb"           # provenance persisted
     assert row[4] == profile_confidence(_table()["100"]["actions"])
+
+
+def test_profile_team_is_the_real_team_name():
+    """A profile's team is the real team name, never the HOME/AWAY side."""
+    table = _table()
+    assert table["100"]["team"] not in ("HOME", "AWAY")

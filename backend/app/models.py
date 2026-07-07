@@ -124,6 +124,70 @@ class PlayerProfile(Base):
     confidence: Mapped[float | None] = mapped_column(Float)
 
 
+class PlayerSeasonProfile(Base):
+    """One player's DNA in one competition/season — the evolution timeline.
+
+    Stores the **full accumulator counters** (additive), so the global
+    ``player_profiles`` row can always be rebuilt as the exact sum of a
+    player's season rows — cross-competition accumulation instead of
+    last-ingest-wins. New seasons (including youth competitions, which are
+    just another competition id) slot in without schema changes.
+    """
+
+    __tablename__ = "player_season_profiles"
+    __table_args__ = (Index("ix_psp_comp_season", "competition", "season"),)
+
+    player_id: Mapped[str] = mapped_column(String, primary_key=True)
+    competition: Mapped[str] = mapped_column(String, primary_key=True)
+    season: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str | None] = mapped_column(String)
+    team: Mapped[str | None] = mapped_column(String)
+    position: Mapped[str | None] = mapped_column(String)
+    # raw counters (fie.profiling.COUNTER_FIELDS) — additive across rows
+    actions: Mapped[int | None] = mapped_column(Integer)
+    passes: Mapped[int | None] = mapped_column(Integer)
+    passes_completed: Mapped[int | None] = mapped_column(Integer)
+    progressive: Mapped[int | None] = mapped_column(Integer)
+    key_passes: Mapped[int | None] = mapped_column(Integer)
+    assists: Mapped[int | None] = mapped_column(Integer)
+    shots: Mapped[int | None] = mapped_column(Integer)
+    goals: Mapped[int | None] = mapped_column(Integer)
+    dribbles: Mapped[int | None] = mapped_column(Integer)
+    dribbles_completed: Mapped[int | None] = mapped_column(Integer)
+    turnovers: Mapped[int | None] = mapped_column(Integer)
+    # derived reading for this season
+    pass_accuracy: Mapped[float | None] = mapped_column(Float)
+    progressive_pass: Mapped[float | None] = mapped_column(Float)
+    key_pass_rate: Mapped[float | None] = mapped_column(Float)
+    shot_share: Mapped[float | None] = mapped_column(Float)
+    turnover_rate: Mapped[float | None] = mapped_column(Float)
+    archetype: Mapped[str | None] = mapped_column(String)
+    matches: Mapped[int | None] = mapped_column(Integer)
+    sources: Mapped[str | None] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column(Float)
+
+
+class PlayerBio(Base):
+    """Biographical facts fused from an external source (e.g. Wikidata).
+
+    Every row is traceable: the source name, the matched entity id (``qid``)
+    and the fetch date. A player with no confident match has **no row** —
+    unknown stays unknown, never a fabricated bio.
+    """
+
+    __tablename__ = "player_bios"
+
+    player_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str | None] = mapped_column(String)
+    birth_date: Mapped[str | None] = mapped_column(String)   # ISO yyyy-mm-dd
+    height_cm: Mapped[int | None] = mapped_column(Integer)
+    position: Mapped[str | None] = mapped_column(String)
+    citizenship: Mapped[str | None] = mapped_column(String)
+    qid: Mapped[str | None] = mapped_column(String)          # provenance: entity id
+    source: Mapped[str | None] = mapped_column(String)       # provenance: dataset
+    fetched_at: Mapped[str | None] = mapped_column(String)
+
+
 class Interaction(Base):
     __tablename__ = "interactions"
     __table_args__ = (Index("ix_interactions_scope", "scope"),)

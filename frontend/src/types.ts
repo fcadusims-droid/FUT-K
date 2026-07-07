@@ -72,6 +72,64 @@ export interface PlayerProfile {
   sources: string[]
 }
 
+// Scout AI — biographical facts fused from Wikidata (null = unverified).
+export interface PlayerBio {
+  birth_date: string | null
+  height_cm: number | null
+  position: string | null
+  citizenship: string | null
+  qid: string | null
+  source: string | null
+  fetched_at: string | null
+}
+
+export interface SimilarPlayer {
+  player_id: string
+  similarity: number
+  name: string | null
+  team: string | null
+  archetype: string | null
+  confidence: number | null
+}
+
+export interface SimilarResponse {
+  player_id: string
+  name: string | null
+  similar: SimilarPlayer[]
+  note: string
+}
+
+export interface ScoutIndex {
+  score: number
+  components: Record<string, number>
+  performance: number
+  confidence_weight: number
+  age: number | null
+  age_factor: number
+  note: string
+}
+
+export interface ScoutRankedPlayer {
+  player_id: string
+  name: string | null
+  team: string | null
+  position: string | null
+  archetype: string | null
+  actions: number | null
+  confidence: number | null
+  age: number | null
+  bio: PlayerBio | null
+  scout: ScoutIndex
+}
+
+export interface ScoutRankings {
+  as_of: string
+  cohort_size: number
+  filters: Record<string, unknown>
+  players: ScoutRankedPlayer[]
+  note: string
+}
+
 // One item of the Digital Match Twin's dense on-ball stream: a real recorded
 // action with sub-second time. Segments (Pass/Carry/Shot) also carry an end
 // location and duration — the ball's true trajectory.

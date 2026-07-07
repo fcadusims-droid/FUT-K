@@ -3,12 +3,14 @@ import { Explore } from './components/Explore'
 import { MatchList } from './components/MatchList'
 import { PlayersView } from './components/PlayersView'
 import { ReplayView } from './components/ReplayView'
+import { ScoutView } from './components/ScoutView'
 import { ThemeToggle } from './components/ThemeToggle'
 import { navigate, routeParts, useHashRoute } from './router'
 
 const TABS: { section: string; label: string }[] = [
   { section: 'matches', label: 'Matches' },
   { section: 'players', label: 'Players' },
+  { section: 'scout', label: 'Scout' },
   { section: 'explore', label: 'Explore' },
   { section: 'benchmarks', label: 'Benchmarks' },
 ]
@@ -53,6 +55,8 @@ export default function App() {
             <Explore onSelect={(id) => navigate(`/match/${id}`)} />
           ) : section === 'benchmarks' ? (
             <Benchmarks />
+          ) : section === 'scout' ? (
+            <ScoutView onSelect={(id) => navigate(`/player/${id}`)} />
           ) : section === 'players' || section === 'player' ? (
             <PlayersView
               selectedId={section === 'player' ? param : null}

@@ -33,6 +33,7 @@ MODULE_LAYER = {
     "simulation": "inference",
     "strategy": "inference",
     "vision": "inference",
+    "scouting": "inference",  # Scout AI: similarity + transparent index
     "players": "knowledge",
     "coaches": "knowledge",
     "tactical": "knowledge",

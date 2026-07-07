@@ -11,4 +11,5 @@ venv/
 
 # Real-data ingestion artifacts (StatsBomb cache + local SQLite DBs)
 .sb_cache/
+.wd_cache/
 *.sqlite

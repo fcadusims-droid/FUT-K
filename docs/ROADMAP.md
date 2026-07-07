@@ -67,6 +67,19 @@ match/aggregate level (goals, cards, subs with minutes) — no shots/xG/coordina
 The live twin gets a real score, goal/card timeline and everything derived from
 them; event-grade live texture needs a paid provider.
 
+## Phase 2.5 — Scout AI (talent discovery) · 🟡 (foundations shipped)
+
+Vision → shipped mapping, honest boundaries and the verified real-data run:
+[`SCOUT.md`](./SCOUT.md).
+
+| Item | Effort | Status | Notes |
+|---|---|---|---|
+| Player Evolution Timeline (`player_season_profiles` + `/players/{id}/evolution`) | M | ✅ | full counters per (player, competition, season); global profile = exact sum (fixes last-ingest-wins) |
+| Behavioral similarity (`/players/{id}/similar`) + Scout index + radar (`/scout/rankings`, Scout tab) | M | ✅ | descriptive & transparent — NOT a trained potential model |
+| Wikidata bio fusion (birth date/height/position/citizenship, QID provenance, cached) | M | ✅ | `enrich_bios.py`; unmatched players stay unknown |
+| Calibration on new competitions via the promotion gate | M | ✅ | verified: Copa América 2024 refit promoted (held-out LL 0.491 vs 0.511) |
+| Trained development model (trajectory learning) | L | ⬜ | needs licensed longitudinal youth data (only free youth tournament: U20 WC 1979) |
+
 ## Phase 3 — Richer in-play intelligence & tracking-ready · ⬜ (research + data)
 
 | Item | Effort | Status | Notes |
