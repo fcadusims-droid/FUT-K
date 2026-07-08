@@ -37,6 +37,7 @@ MODULE_LAYER = {
     "context": "inference",       # Phase D: deterministic contextual data
     "behavior": "knowledge",      # Phase D: behavioral indices from events
     "canonical": "inference",     # the source-agnostic canonical pipeline
+    "graph": "inference",         # Knowledge Graph over the canonical store
     "simulation": "inference",
     "strategy": "inference",
     "vision": "inference",

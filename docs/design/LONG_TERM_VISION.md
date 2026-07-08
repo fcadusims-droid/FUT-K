@@ -59,9 +59,9 @@ federated infrastructure, packaging — plus the non-code parts.
 - **Today (🟡):** `recalibrate.py` + the **held-out promotion gate** (promote only
   if held-out log-loss doesn't degrade) + `model_versions`; player profiles
   rebuilt from per-season rows; the temporal/provenance contract preserves history.
-- **Gap:** automated orchestration (refit triggered on new data); a real
-  **Knowledge Graph** (today there is a knowledge *store* of records, not a
-  queryable graph of relations); incremental learning at scale.
+- **Gap:** automated orchestration (refit triggered on new data); incremental
+  learning at scale. *(The **Knowledge Graph** over the canonical store now
+  exists — `fie.graph` / `GET /knowledge/graph`.)*
 
 ### 4. Global scalability (thousands of matches, near-real-time world state)
 - **Today (🟡):** the pure/deterministic engine scales horizontally in principle;
@@ -104,9 +104,11 @@ Buildable now, on the existing core, without fabricating data:
    `live_sessions` / `live_observations`; sessions are stateless and portable
    across workers (the §4 blocker). The in-memory `LiveMatch` remains the pure
    compute object the store rebuilds; "streamed == batch" preserved.
-2. **Knowledge Graph over the canonical store** — ⬜ turn `knowledge_records`
-   into a queryable graph of entities/relations over time (player ↔ team ↔ match
-   ↔ competition). Feeds §1, §3, §6.
+2. **Knowledge Graph over the canonical store** — ✅ **done.** `fie.graph`
+   derives a queryable graph (player ↔ team ↔ match ↔ competition) from each
+   record's context, every edge carrying temporal validity and provenance; served
+   at `GET /knowledge/graph` (whole graph, a node's neighbourhood with `as_of`, or
+   a type's nodes). Feeds §1, §3, §6.
 3. **Institutional connector SDK** — ⬜ formalize the `Source` ABC + canonical
    pipeline into a connector guide + a reference tracking/positional connector,
    proving §1 interoperability and leaving the door open for §2 (CV).
