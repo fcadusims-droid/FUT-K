@@ -623,6 +623,27 @@ def knowledge_as_of(
     return result
 
 
+@app.get("/knowledge/graph")
+def knowledge_graph_view(
+    entity: str | None = Query(None, description="node key, e.g. player:p1 or team:bayern"),
+    relation: str | None = None,
+    node_type: str | None = Query(None, pattern="^(player|team|match|competition)$"),
+    as_of: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    limit: int = Query(200, ge=1, le=2000),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The Knowledge Graph over the canonical store (readiness item 2).
+
+    Player ↔ team ↔ match ↔ competition, every edge carrying its temporal
+    validity and provenance, derived from the stored records' contexts. Pass
+    ``entity`` for one node's neighbourhood (with optional ``relation``/``as_of``),
+    ``node_type`` to list a type's nodes, else the top ``limit`` edges."""
+    from .knowledgestore import knowledge_graph
+
+    return knowledge_graph(db, entity=entity, relation=relation, as_of=as_of,
+                           node_type=node_type, limit=limit)
+
+
 @app.get("/knowledge/audit")
 def knowledge_audit(db: Session = Depends(get_db)) -> dict:
     """Continuous audit: replay the isolation & integrity validators over the

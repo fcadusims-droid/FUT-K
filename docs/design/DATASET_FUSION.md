@@ -133,7 +133,8 @@ pipeline and becomes FUT-K's own dataset before anything else touches it
    Canonical  FUT-K's own global ids via identity resolution, validated,
             │  cross-checked — the single source of truth (canonical_*_id)
             ▼
-   Knowledge  the knowledge_records store: timelines, provenance, behavior, context
+   Knowledge  the knowledge_records store + graph: timelines, provenance,
+            │  behavior, context, and the entity/relation graph (fie.graph)
             │
             ▼
    AI         simulation · scouting · tactics · prediction · digital twin

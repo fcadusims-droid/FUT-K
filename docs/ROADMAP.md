@@ -107,7 +107,7 @@ buildable now on the existing core:
 | Item | Effort | Status | Notes |
 |---|---|---|---|
 | **Externalize Live Mode sessions** (DB-backed, stateless) | M | ✅ | `live_sessions`/`live_observations`; any worker rebuilds any session — the horizontal-scale/edge blocker, removed |
-| Knowledge Graph over the canonical store | L | ⬜ | queryable entity/relation graph over time; feeds institutional integration, continuous learning, federation |
+| **Knowledge Graph over the canonical store** | L | ✅ | `fie.graph` + `GET /knowledge/graph`: player↔team↔match↔competition, edges carry temporal validity + provenance, `as_of` queries; feeds institutional integration, continuous learning, federation |
 | Institutional connector SDK + reference tracking connector | L | ⬜ | formalize `Source` ABC + canonical pipeline; opens the door to real-time CV |
 | Offline **appliance** packaging + data-sovereignty manifest | M | ⬜ | "install, runs on power + LAN only" (edge/independence) |
 | Real-time computer-vision ingestion | L | 🔒 | Vision Engine is architected for a dense tracking feed; the CV producer needs ML/GPU + data |

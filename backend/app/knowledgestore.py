@@ -194,6 +194,31 @@ def audit(session: Session, known_players=None, known_matches=None) -> dict:
                        known_matches=known_matches)
 
 
+def knowledge_graph(session: Session, *, entity=None, relation=None,
+                    as_of=None, node_type=None, limit=200) -> dict:
+    """The Knowledge Graph over the whole store (or a node's neighbourhood).
+
+    Builds the graph deterministically from every stored record's context. With
+    ``entity`` (a node key like ``player:p1``) it returns that node's relations
+    and neighbours (optionally filtered by ``relation`` and ``as_of``); otherwise
+    the top ``limit`` edges of the whole graph, or the nodes of ``node_type``.
+    """
+    from fie.graph import build_graph
+
+    graph = build_graph(_load_all(session))
+    if entity:
+        return {
+            "entity": entity,
+            "relations": [e.to_dict() for e in graph.relations(entity, as_of=as_of)],
+            "neighbors": graph.neighbors(entity, relation=relation, as_of=as_of),
+        }
+    if node_type:
+        return {"node_type": node_type,
+                "nodes": [n.__dict__ | {"key": n.key}
+                          for n in graph.nodes_of_type(node_type)]}
+    return graph.to_dict(limit=limit)
+
+
 def list_records(session: Session, kind=None, entity=None, layer=None,
                  match_id=None, current_only=False, limit=100) -> list:
     stmt = select(KnowledgeRecordRow)
