@@ -15,6 +15,7 @@ import os
 
 from app.db import SessionLocal, init_db
 from app.fusionstore import store_fused
+from app.knowledgestore import store_fused_as_knowledge
 
 from fie.fusion import resolve_matches
 from fie.sources.providers import FIELDS, FUSION_LEAGUES, PRIORS, load_league_sources
@@ -41,6 +42,10 @@ def main():
             resolved = resolve_matches(load_league_sources(key, args.cache))
             result = store_fused(session, label, resolved, FIELDS, PRIORS)
             print(f"  {result}")
+            # Phase B: the same reconciliation also lands in the knowledge store,
+            # each fused field an OBSERVED record with its provenance intact.
+            knowledge = store_fused_as_knowledge(session, label, resolved, FIELDS, PRIORS)
+            print(f"  knowledge: {knowledge}")
     finally:
         session.close()
 

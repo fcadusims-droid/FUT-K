@@ -274,6 +274,44 @@ class FusedMatchRecord(Base):
     created_at: Mapped[str] = mapped_column(String)
 
 
+class KnowledgeRecordRow(Base):
+    """One datum of the Dataset Fusion, persisted (Phase B).
+
+    The append-only store behind ``fie.fusiondata.KnowledgeRecord``: every datum
+    keeps its context, provenance and temporal validity, so nothing is ever mixed
+    across the boundaries that give it meaning. ``id`` is the content-addressed
+    version id (stable for a given value); ``logical_id`` groups the versions of
+    the same thing (the supersede chain). Values are never overwritten — a
+    correction is a new row; a supersede only closes the prior row's temporal
+    window (``valid_to`` + ``superseded_by``). JSON columns are TEXT, portable
+    SQLite <-> Postgres.
+    """
+
+    __tablename__ = "knowledge_records"
+    __table_args__ = (
+        Index("ix_knowledge_logical", "logical_id"),
+        Index("ix_knowledge_entity_kind", "entity_id", "kind"),
+        Index("ix_knowledge_match", "match_id"),
+        Index("ix_knowledge_layer", "layer"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    logical_id: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String)
+    layer: Mapped[str] = mapped_column(String)
+    entity_id: Mapped[str | None] = mapped_column(String)   # player/team/match
+    match_id: Mapped[str | None] = mapped_column(String)    # isolation grouping
+    value_json: Mapped[str] = mapped_column(String)
+    context_json: Mapped[str] = mapped_column(String)
+    provenance_json: Mapped[str] = mapped_column(String)
+    valid_from: Mapped[str | None] = mapped_column(String)
+    valid_to: Mapped[str | None] = mapped_column(String)
+    superseded_by: Mapped[str | None] = mapped_column(String)
+    permanence: Mapped[str] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    stored_at: Mapped[str] = mapped_column(String)
+
+
 class ModelVersion(Base):
     """The continuous-learning loop's version history (product level 19)."""
 
