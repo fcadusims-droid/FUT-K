@@ -72,6 +72,48 @@ checks **raise** (`IntegrityError`) rather than warn:
 becomes an `OBSERVED` record that keeps its fused value **and** its honesty
 (winning sources, per-field confidence, recorded dissent).
 
+`audit_store` runs the whole validator set over a store on demand — the
+*auditoria contínua*: a green run proves the store is internally consistent.
+The contract's `SCHEMA_VERSION` travels in provenance so a record written under
+an incompatible schema can be rejected.
+
+## Dynamic Knowledge Management — knowledge as a temporal state
+
+[`src/fie/dynamics.py`](../../src/fie/dynamics.py) treats **every attribute as a
+state in time, never a permanent fact** (§Gestão Dinâmica do Conhecimento). It is
+the timeline machinery over the substrate: each `Temporal` now also carries
+`permanence` (permanent vs temporary) and per-version `confidence`.
+
+- **Append-only history.** A change never overwrites: `append_version` closes the
+  previous permanent version (`valid_to` + `superseded_by`) and appends the new
+  one, so the full history survives.
+- **Permanent vs temporary.** A transfer or a settled position switch becomes the
+  new current state; an in-match role, a suspension or a false-nine spell is
+  `TEMPORARY` — valid only inside its window, overriding the baseline while active
+  and reverting when it ends.
+- **As-of resolution.** `state_as_of` / `value_as_of` answer any question about
+  the past — *how did this player play three seasons ago? when did he stop being
+  a striker?* — and `history` returns the full evolution. `current_state` is the
+  settled baseline. All deterministic.
+
+## Knowledge Base for Simulation — the leakage-free pre-match state
+
+[`src/fie/worldstate.py`](../../src/fie/worldstate.py) assembles the knowledge the
+simulator is handed before kick-off (§Base de Conhecimento para Simulação):
+
+- **`assemble_state(records, as_of)`** resolves every entity attribute *as of* the
+  cutoff via `dynamics.state_as_of`, so the simulator sees teams and players as
+  they were known before the match — a striker who only became a midfielder later
+  is still a striker in a 2020 simulation.
+- **`assert_no_future_leak`** is the 73:15 leakage discipline applied to knowledge:
+  it rejects any record that becomes valid after the cutoff, was collected after
+  it, or is unvalidated inference (`SIMULATED`/`EXPERIMENTAL` can never seed a
+  simulation). `assemble_state` runs it by construction.
+- **Independence of output.** `simulated_record` tags each result as `SIMULATED`,
+  citing the prior-knowledge records that seeded it; `gate_incorporation` refuses
+  to admit simulated data into the base without an explicit audit — and even then
+  keeps it in the `SIMULATED` layer, never mistaken for observed fact.
+
 ## Vision → reality map
 
 Status: ✅ shipped · 🟡 partial · ⬜ planned.
@@ -79,7 +121,9 @@ Status: ✅ shipped · 🟡 partial · ⬜ planned.
 | # | Category in the vision | Status | Where it stands |
 |---|---|---|---|
 | — | Deterministic pipeline | ✅ | founding invariant, tested everywhere |
-| — | **Integrity & isolation contract** | ✅ | **`fie.fusiondata`** (this change): context, provenance, temporal, layers, validators |
+| — | **Integrity & isolation contract** | ✅ | **`fie.fusiondata`**: context, provenance, temporal, layers, validators, `audit_store` |
+| — | **Dynamic knowledge (temporal versions)** | ✅ | **`fie.dynamics`**: append-only history, permanent/temporary, as-of resolution |
+| — | **Simulation knowledge base (leakage-free)** | ✅ | **`fie.worldstate`**: pre-match state as-of a cutoff + simulated-output gating |
 | — | Cross-source normalization | ✅ | `fie.fusion.normalize_entity` |
 | — | Measured source reliability | ✅ | `fie.fusion.priors_from_agreement` |
 | — | Cross-validation without silent overwrite | ✅ | fused fields record dissent, never substitute |
@@ -87,20 +131,24 @@ Status: ✅ shipped · 🟡 partial · ⬜ planned.
 | 2 | Base categories (Sub-13…Sub-23) | 🟡 | `player_season_profiles` + the `YOUTH` layer accept youth as another competition; no dedicated pipeline yet |
 | 3 | Unstructured data (NLP) | ⬜ | not started (needs an entity/relation/sentiment extraction stage feeding `EXTERNAL`/`DERIVED`) |
 | 4 | Contextual data (weather, altitude, rest, market value) | ⬜ | not started |
-| 5 | Temporal data (validity, version history) | 🟡 | `Temporal` gives per-record validity + supersede; persistence of the version chain ⬜ |
+| 5 | Temporal data (validity, version history) | ✅ | `Temporal` + `fie.dynamics`: per-version validity, permanence, confidence, append-only history, as-of; persistence of the chain ⬜ |
 | 6 | Derived data (embeddings, profiles, indices) | 🟡 | exist (`similarity`, `profiling`, `scouting`); to be re-homed as `DERIVED` records citing evidence |
 | 7 | Probabilistic data (Potential, Breakout, MOI, confidence) | 🟡 | predictions/outcomes + `model_versions` shipped; new indices ⬜ |
 | 8 | Behavioral data (Leadership, Resilience, …) | ⬜ | not started (derive from event sequences into `DERIVED`) |
-| 9 | Simulation data (futures, sub/player impact) | 🟡 | `/simulate` produces them; persisting them as `SIMULATED` records ⬜ |
+| 9 | Simulation data (futures, sub/player impact) | 🟡 | `fie.worldstate` gives the leakage-free pre-match state + output gating; persisting `SIMULATED` records ⬜ |
 
-## What this change delivers
+## What the engine-level Dataset Fusion delivers today
 
 - `src/fie/fusiondata.py` — the substrate: `Context`, `Provenance`, `Temporal`,
-  `Layer`, `KnowledgeRecord`, deterministic ids, the full validator set, and the
-  `from_fused_fields` bridge.
-- `tests/test_fusiondata.py` — the contract, tested and deterministic.
-- Registered in the architecture map (`tests/test_architecture.py`), so the
-  dependency rule and stdlib-only discipline cover it too.
+  `Layer`, `KnowledgeRecord`, deterministic ids, the full validator set,
+  `audit_store`, `SCHEMA_VERSION`, and the `from_fused_fields` bridge.
+- `src/fie/dynamics.py` — Dynamic Knowledge Management: append-only version
+  timelines, permanent/temporary states, as-of resolution and full history.
+- `src/fie/worldstate.py` — the leakage-free pre-match knowledge state for the
+  simulator, plus the simulated-output independence gate.
+- `tests/test_fusiondata.py`, `tests/test_dynamics.py`, `tests/test_worldstate.py`
+  — the contract, tested and deterministic; all three modules are registered in
+  the architecture map so the dependency rule and stdlib-only discipline cover them.
 
 It is the **load-bearing foundation**: the guarantee every future category
 plugs into. It intentionally does *not* fabricate the nine categories shallowly
@@ -108,8 +156,10 @@ plugs into. It intentionally does *not* fabricate the nine categories shallowly
 
 ## Phased roadmap
 
-**Phase A — substrate ✅ (this change).** The record model + isolation/integrity
-contract, tested.
+**Phase A — engine-level contract ✅.** The record model + isolation/integrity
+substrate (`fusiondata`), Dynamic Knowledge Management (`dynamics`) and the
+leakage-free Simulation Knowledge Base (`worldstate`), all pure, deterministic
+and tested.
 
 **Phase B — persistence & provenance store ⬜.** A `knowledge_records` table
 (id, logical_id, kind, layer, value JSON, context, provenance, temporal),

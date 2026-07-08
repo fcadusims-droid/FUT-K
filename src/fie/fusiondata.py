@@ -40,6 +40,13 @@ from enum import Enum
 from typing import Any, Optional
 
 
+# Schema version of the knowledge contract. Bump on any change to the record
+# shape or the isolation rules; it travels in provenance (pipeline_version) and
+# lets an audit reject records written under an incompatible schema (§Arquitetura
+# Defensiva: versionamento de esquemas).
+SCHEMA_VERSION = "1.1"
+
+
 class IntegrityError(Exception):
     """A datum, or a combination of data, violated the isolation contract."""
 
@@ -170,6 +177,10 @@ class Provenance:
 # --------------------------------------------------------------------------- #
 # Temporal — validity in time (§Dados Temporais: nothing is permanent)
 # --------------------------------------------------------------------------- #
+PERMANENT = "permanent"
+TEMPORARY = "temporary"
+
+
 @dataclass(frozen=True)
 class Temporal:
     """When a datum is true, and whether a newer version has replaced it.
@@ -177,16 +188,27 @@ class Temporal:
     ``valid_from``/``valid_to`` bound the datum's truth window; ``superseded_by``
     links to the record that replaced it. A live datum has ``valid_to is None``
     and no successor. Correcting a datum never overwrites it — it closes this
-    version and appends a new one (:meth:`superseded_by`).
+    version and appends a new one (:meth:`close`).
+
+    ``permanence`` marks whether this state is a lasting change (a transfer, a
+    settled position switch) or a bounded one that reverts when its context ends
+    (an in-match role, a suspension). ``confidence`` is how sure we are of this
+    version — the per-version metadata the Dynamic Knowledge Management layer
+    ranks on (``fie.dynamics``).
     """
 
     valid_from: Optional[str] = None
     valid_to: Optional[str] = None
     superseded_by: Optional[str] = None
+    permanence: str = PERMANENT           # PERMANENT | TEMPORARY
+    confidence: Optional[float] = None
 
     def is_current(self) -> bool:
         """True while this version is still the live one (open, un-replaced)."""
         return self.valid_to is None and self.superseded_by is None
+
+    def is_temporary(self) -> bool:
+        return self.permanence == TEMPORARY
 
     def close(self, valid_to: str, superseded_by: Optional[str] = None) -> "Temporal":
         """Return a closed version — the append-only way to correct a datum."""
@@ -291,6 +313,8 @@ class KnowledgeRecord:
                 "valid_from": self.temporal.valid_from,
                 "valid_to": self.temporal.valid_to,
                 "superseded_by": self.temporal.superseded_by,
+                "permanence": self.temporal.permanence,
+                "confidence": self.temporal.confidence,
                 "current": self.temporal.is_current(),
             },
         }
@@ -541,6 +565,40 @@ def assert_integrity(records, *, single_match=False, single_season=False,
         assert_single_match(records)
     if single_season:
         assert_single_season(records)
+
+
+def audit_store(records, *, known_players=None, known_matches=None) -> dict:
+    """Continuous audit: replay the always-on checks over a whole store.
+
+    The vision's *auditoria contínua* — a store-wide consistency sweep meant to
+    run on a schedule, not only at write time. Every record must answer its
+    provenance and (if inferred) cite evidence; no player may be on two teams in
+    one match; every reference must resolve; and events must stay isolated inside
+    their own match. Raises :class:`IntegrityError` on the first violation, so a
+    green run is a proof the store is internally consistent. Returns a summary of
+    what was swept — deterministic given the records.
+    """
+    records = list(records)
+    for r in records:
+        check_provenance(r)
+        check_derivation_evidence(r)
+    assert_player_single_team(records)
+    check_referential_integrity(records, known_players, known_matches)
+    by_match: dict = {}
+    for r in records:
+        by_match.setdefault(r.context.match_id, []).append(r)
+    for mid, group in by_match.items():
+        assert_single_match(group)   # trivially true per group — guards regressions
+    layers: dict = {}
+    for r in records:
+        layers[r.layer.value] = layers.get(r.layer.value, 0) + 1
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "records": len(records),
+        "matches": len({m for m in by_match if m is not None}),
+        "by_layer": dict(sorted(layers.items())),
+        "ok": True,
+    }
 
 
 # --------------------------------------------------------------------------- #

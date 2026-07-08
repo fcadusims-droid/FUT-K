@@ -425,10 +425,12 @@ with its executable companion
 [`docs/design/validation_test_plan.md`](./docs/design/validation_test_plan.md).
 
 The **Dataset Fusion** — the unified knowledge substrate that keeps every datum
-tied to its context, provenance and moment in time, and makes it impossible to
-mix data across the boundaries that give it meaning — is
+tied to its context, provenance and moment in time, makes it impossible to mix
+data across the boundaries that give it meaning, treats knowledge as a temporal
+state (append-only history, permanent vs temporary, as-of resolution), and hands
+the simulator a leakage-free pre-match state — is
 [`docs/design/DATASET_FUSION.md`](./docs/design/DATASET_FUSION.md)
-(the integrity & isolation contract in [`src/fie/fusiondata.py`](./src/fie/fusiondata.py)).
+(`fie.fusiondata` · `fie.dynamics` · `fie.worldstate`).
 
 ## Roadmap (product phase)
 
