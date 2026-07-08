@@ -108,3 +108,33 @@ def embedding_record(
         provenance=Provenance(source="engine", pipeline_version=pipeline_version,
                               parents=tuple(parents)),
     )
+
+
+BEHAVIOR_PIPELINE = "behavior/indices"
+
+
+def behavior_record(
+    indices: dict, context: Context, *,
+    pipeline_version: str = BEHAVIOR_PIPELINE, parents: tuple = (),
+    confidence: Optional[float] = None,
+) -> "object":
+    """Wrap a player's behavioral indices (Phase D) as one DERIVED record."""
+    return make_record(
+        kind="behavioral_profile", value=indices, layer=Layer.DERIVED,
+        context=context,
+        provenance=Provenance(source="engine", pipeline_version=pipeline_version,
+                              parents=tuple(parents)),
+        temporal=Temporal(confidence=confidence),
+    )
+
+
+def derived_record(
+    kind: str, value, context: Context, *, pipeline_version: str,
+    parents: tuple = (),
+) -> "object":
+    """Wrap any computed aggregate (e.g. competition strength) as DERIVED."""
+    return make_record(
+        kind=kind, value=value, layer=Layer.DERIVED, context=context,
+        provenance=Provenance(source="engine", pipeline_version=pipeline_version,
+                              parents=tuple(parents)),
+    )

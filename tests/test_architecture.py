@@ -34,6 +34,8 @@ MODULE_LAYER = {
     "dynamics": "inference",    # Dynamic Knowledge Management: temporal versions
     "worldstate": "inference",  # Knowledge Base for Simulation: pre-match state
     "knowledgemap": "inference",  # Phase C: lift engine outputs into the contract
+    "context": "inference",       # Phase D: deterministic contextual data
+    "behavior": "knowledge",      # Phase D: behavioral indices from events
     "simulation": "inference",
     "strategy": "inference",
     "vision": "inference",

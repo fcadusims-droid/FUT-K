@@ -130,11 +130,11 @@ Status: ✅ shipped · 🟡 partial · ⬜ planned.
 | 1 | Structured data | 🟡 | matches, events, stats, lineups, xG shipped; tracking, transfers, contracts, injuries, rankings ⬜ |
 | 2 | Base categories (Sub-13…Sub-23) | 🟡 | `player_season_profiles` + the `YOUTH` layer accept youth as another competition; no dedicated pipeline yet |
 | 3 | Unstructured data (NLP) | ⬜ | not started (needs an entity/relation/sentiment extraction stage feeding `EXTERNAL`/`DERIVED`) |
-| 4 | Contextual data (weather, altitude, rest, market value) | ⬜ | not started |
+| 4 | Contextual data (weather, altitude, rest, market value) | 🟡 | **`fie.context`**: venue, rest days, fixture congestion and competition strength derived from the calendar already ingested (`capture_context`); weather/altitude/market value ⬜ (need an external source — not fabricated) |
 | 5 | Temporal data (validity, version history) | ✅ | `Temporal` + `fie.dynamics`: per-version validity, permanence, confidence, append-only history, as-of; persistence of the chain ⬜ |
 | 6 | Derived data (embeddings, profiles, indices) | 🟡 | exist (`similarity`, `profiling`, `scouting`); to be re-homed as `DERIVED` records citing evidence |
 | 7 | Probabilistic data (Potential, Breakout, MOI, confidence) | 🟡 | predictions/outcomes + `model_versions` shipped; new indices ⬜ |
-| 8 | Behavioral data (Leadership, Resilience, …) | ⬜ | not started (derive from event sequences into `DERIVED`) |
+| 8 | Behavioral data (Leadership, Resilience, …) | 🟡 | **`fie.behavior`**: Decision Stability, Pressure Resistance, Aggression Control, Resilience and a Confidence Curve from event sequences (`capture_behavior`, stored `DERIVED`); Leadership, Recovery Behavior and Tactical Discipline **honestly abstained** (need signals not in the event stream) |
 | 9 | Simulation data (futures, sub/player impact) | 🟡 | `fie.worldstate` gives the leakage-free pre-match state + output gating; persisting `SIMULATED` records ⬜ |
 
 ## What the engine-level Dataset Fusion delivers today
@@ -182,10 +182,16 @@ predictions (`capture_panel`) and simulation (`capture_simulation`, through the
 audit gate); reads stay leakage-safe. Tested in `tests/test_knowledgemap.py` and
 `backend/tests/test_knowledge_capture.py`.
 
-**Phase D — new categories ⬜.** Contextual data (weather/altitude/rest/market),
-behavioral indices, then the unstructured/NLP stage — each entering through the
-same front door (`make_record`) so isolation and provenance hold by
-construction.
+**Phase D — new categories 🟡 (deterministic slice done).** The parts derivable
+from data already in the repo are built: contextual data (`fie.context` — venue,
+rest, congestion, competition strength) and behavioral indices (`fie.behavior` —
+decision stability, pressure resistance, aggression control, resilience,
+confidence curve), captured via `capture_context` / `capture_behavior` and stored
+under the contract. What needs an **external source is deliberately left ⬜ and
+not fabricated**: weather/altitude/market value, the unstructured/NLP stage, and
+the behavioral indices that require signals the event stream lacks (Leadership,
+Recovery Behavior, Tactical Discipline) — the latter abstain with a stated reason.
+Each will enter through the same front door (`make_record`) when a source exists.
 
 **Phase E — youth pipeline ⬜.** A dedicated `YOUTH`-layer ingestion for the
 base categories, feeding Scout AI's trajectory learning (gated today by the lack
