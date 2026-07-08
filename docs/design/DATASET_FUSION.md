@@ -161,11 +161,16 @@ substrate (`fusiondata`), Dynamic Knowledge Management (`dynamics`) and the
 leakage-free Simulation Knowledge Base (`worldstate`), all pure, deterministic
 and tested.
 
-**Phase B — persistence & provenance store ⬜.** A `knowledge_records` table
-(id, logical_id, kind, layer, value JSON, context, provenance, temporal),
-append-only with the supersede-chain; migrate `FusedMatchRecord` to write
-through `from_fused_fields`; a continuous audit that replays the validators over
-the store.
+**Phase B — persistence & provenance store ✅.** The `knowledge_records` table
+(`backend/app/models.py`) and `backend/app/knowledgestore.py`: byte-faithful
+serialization (a rebuilt record recomputes the same id), append-only with the
+supersede-chain, and every read delegated to the validated engine
+(`state_as_of`, `history`, `assemble_state`, `audit`). The fusion pipeline now
+also writes each fused field into the store via `from_fused_fields`
+(`store_fused_as_knowledge`, wired into `ingest_fused.py`), simulated output is
+admitted only through `gate_incorporation` (`store_simulation`), and the
+`/knowledge/records|history|as-of|audit` endpoints expose it. Tested in
+`backend/tests/test_knowledge_api.py`.
 
 **Phase C — lift existing derived/probabilistic/simulated outputs ⬜.** Re-home
 player/match embeddings, profiles and scout indices as `DERIVED` records, and

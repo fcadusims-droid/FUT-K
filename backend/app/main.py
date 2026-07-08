@@ -572,6 +572,72 @@ def fusion_records(
                       conflicts_only=conflicts_only, limit=limit)
 
 
+@app.get("/knowledge/records")
+def knowledge_records(
+    kind: str | None = None,
+    entity: str | None = None,
+    layer: str | None = None,
+    match_id: str | None = None,
+    current_only: bool = False,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    """The Dataset Fusion knowledge store (Phase B): every datum with its full
+    context, provenance and temporal validity. Filter by kind/entity/layer."""
+    from .knowledgestore import list_records
+
+    return list_records(db, kind=kind, entity=entity, layer=layer,
+                        match_id=match_id, current_only=current_only, limit=limit)
+
+
+@app.get("/knowledge/history")
+def knowledge_history(
+    kind: str = Query(...),
+    entity: str = Query(...),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    """The full version history of one entity attribute (oldest-first).
+
+    Answers "how did this player's profile evolve?" — no past version is ever
+    lost (Dynamic Knowledge Management, ``fie.dynamics``)."""
+    from .knowledgestore import history
+
+    return history(db, kind, entity)
+
+
+@app.get("/knowledge/as-of")
+def knowledge_as_of(
+    kind: str = Query(...),
+    entity: str = Query(...),
+    at: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The value of an entity attribute valid on a given date — the leakage-free
+    reading the simulator uses (a temporary state overrides only in its window)."""
+    from .knowledgestore import state_as_of
+
+    result = state_as_of(db, kind, entity, at)
+    if result is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no {kind} known for {entity} as of {at}")
+    return result
+
+
+@app.get("/knowledge/audit")
+def knowledge_audit(db: Session = Depends(get_db)) -> dict:
+    """Continuous audit: replay the isolation & integrity validators over the
+    whole store. A 200 with ``ok: true`` is a proof the store is consistent; a
+    violation raises (surfaced as a 500 with the offending rule)."""
+    from fie.fusiondata import IntegrityError
+
+    from .knowledgestore import audit
+
+    try:
+        return audit(db)
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail=f"store inconsistency: {exc}") from exc
+
+
 @app.get("/matches/{match_id}/state/human")
 def match_state_human(
     match_id: str,
