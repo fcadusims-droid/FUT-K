@@ -1,0 +1,12 @@
+t,player_id,team,x,y,player
+0.0,1,HOME,50.0,50.0,Alice Keeper
+0.0,2,HOME,30.0,40.0,Bob Back
+0.0,3,AWAY,70.0,55.0,Carla Nine
+0.04,1,HOME,50.1,50.0,Alice Keeper
+0.04,2,HOME,30.8,40.4,Bob Back
+0.04,3,AWAY,69.2,55.3,Carla Nine
+0.08,1,HOME,50.2,50.1,Alice Keeper
+0.08,2,HOME,31.6,40.9,Bob Back
+0.08,3,AWAY,68.4,55.7,Carla Nine
+0.12,2,HOME,32.5,41.5,Bob Back
+0.12,3,AWAY,67.6,56.0,Carla Nine

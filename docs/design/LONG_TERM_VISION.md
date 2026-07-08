@@ -51,9 +51,10 @@ federated infrastructure, packaging — plus the non-code parts.
   for a dense 22-player tracking feed*, and the canonical `Event` already carries
   pitch coordinates.
 - **Gap:** the entire CV stack — video ingestion, player detection/tracking,
-  homography to pitch coordinates, event detection — as a new **Source at the
-  boundary** feeding canonical tracking records. Large ML/GPU subsystem; the
-  architecture is *ready to consume* a tracking feed, the producer does not exist.
+  homography to pitch coordinates, event detection — as the **producer** behind
+  the tracking connector (`fie.sources.tracking`, now shipped) that already feeds
+  the Vision Engine. Large ML/GPU subsystem; the architecture and the consumer are
+  ready, only the CV producer is missing.
 
 ### 3. Continuous learning
 - **Today (🟡):** `recalibrate.py` + the **held-out promotion gate** (promote only
@@ -109,9 +110,13 @@ Buildable now, on the existing core, without fabricating data:
    record's context, every edge carrying temporal validity and provenance; served
    at `GET /knowledge/graph` (whole graph, a node's neighbourhood with `as_of`, or
    a type's nodes). Feeds §1, §3, §6.
-3. **Institutional connector SDK** — ⬜ formalize the `Source` ABC + canonical
-   pipeline into a connector guide + a reference tracking/positional connector,
-   proving §1 interoperability and leaving the door open for §2 (CV).
+3. **Institutional connector SDK** — ✅ **done.** The connector guide
+   ([`CONNECTORS.md`](./CONNECTORS.md)) formalizes the two connector shapes (the
+   on-ball `Source` ABC and a positional/tracking connector) + how they reach the
+   canonical layer, and ships a reference **tracking connector**
+   (`fie.sources.tracking`, open 7-field CSV/JSON) that feeds the Vision Engine and
+   the canonical pipeline — proving §1 interoperability and readying §2 (CV: the
+   consumer exists, only the producer is missing).
 4. **Offline appliance packaging** — ⬜ a self-contained image/compose that runs
    on power + LAN only (§7), with a data-sovereignty manifest (which layers stay
    local vs. syncable).
