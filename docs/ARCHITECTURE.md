@@ -44,6 +44,20 @@ parses every module's imports with `ast` and **fails if any module imports
 upward**. When the rule genuinely needs to change, change the layer map in
 that test in the same commit — the diff then documents the decision.
 
+## The second rule: no module consumes external data directly
+
+Every datum from an outside provider must pass through the **Dataset Fusion**
+pipeline (Raw → Normalized → Canonical) and become FUT-K's own canonical dataset
+before any consumer touches it. Only the **ingestion boundary** — the
+`fie.sources` connectors and a small allowlist of backend ingestion modules — may
+import a provider or open a network connection; simulation, scouting, tactics, the
+panel and the API's serving path depend on the canonical store, never on a source.
+This decouples the platform from its providers: swap StatsBomb for Opta and the
+consumers don't change. It is enforced the same way — `tests/test_data_boundary.py`
+parses imports with `ast` and fails the build on a violation. See
+[`docs/design/DATASET_FUSION.md`](./design/DATASET_FUSION.md) for the pipeline and
+the canonical identity model.
+
 ## Extending FUT-K: plugins, not core edits
 
 Third-party capability lands through the **plugin system**

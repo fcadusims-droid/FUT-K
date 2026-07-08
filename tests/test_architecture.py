@@ -36,6 +36,7 @@ MODULE_LAYER = {
     "knowledgemap": "inference",  # Phase C: lift engine outputs into the contract
     "context": "inference",       # Phase D: deterministic contextual data
     "behavior": "knowledge",      # Phase D: behavioral indices from events
+    "canonical": "inference",     # the source-agnostic canonical pipeline
     "simulation": "inference",
     "strategy": "inference",
     "vision": "inference",

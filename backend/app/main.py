@@ -21,7 +21,6 @@ from .insights import PRESETS, run_query
 from .learningloop import get_active_params
 from .models import ModelVersion
 from .similarity import match_vector, similar_matches
-from .network import DEFAULT_CACHE, network_payload
 import os as _os
 
 from fie.plugins import load_plugins as _load_plugins, run_all as _run_plugins
@@ -748,18 +747,20 @@ def match_network(
     side: str = Query("HOME", pattern="^(HOME|AWAY)$"),
     db: Session = Depends(get_db),
 ) -> dict:
-    """The team's passing network for this match (Section 12, Layer 5)."""
-    m = _get_match(db, match_id)
-    team_name = m.home_team if side == "HOME" else m.away_team
-    try:
-        from fie.sources.statsbomb import fetch_events
+    """The team's passing network for this match, from the canonical store.
 
-        raw = fetch_events(match_id, cache_dir=DEFAULT_CACHE)
-    except Exception as exc:  # noqa: BLE001 - cache miss + no network
-        raise HTTPException(status_code=503,
-                            detail=f"raw event data unavailable: {exc}") from exc
-    payload = network_payload(raw, team_name or side)
-    payload["side"] = side
+    Served from the persisted ``passing_networks`` (built at the ingestion
+    boundary); the serving path never reads a provider (the Dataset Fusion
+    boundary rule). 503 only when the network has never been built and the raw
+    cache is unavailable to build it on first request."""
+    from .network import get_network
+
+    m = _get_match(db, match_id)
+    payload = get_network(db, m, side)
+    if payload is None:
+        raise HTTPException(
+            status_code=503,
+            detail="passing network unavailable (not built and no raw cache)")
     return payload
 
 
