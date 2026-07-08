@@ -274,6 +274,23 @@ class FusedMatchRecord(Base):
     created_at: Mapped[str] = mapped_column(String)
 
 
+class PassingNetworkRow(Base):
+    """A team's passing network for one match — built at the ingestion boundary.
+
+    Mirrors ``ReplayStream``: the network is derived from raw provider events by
+    the network-building module (the only place raw is read), stored as JSON, and
+    served from here — so the ``/network`` serving path depends on the canonical
+    store, never on a provider (the Dataset Fusion boundary rule).
+    """
+
+    __tablename__ = "passing_networks"
+
+    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id"), primary_key=True)
+    side: Mapped[str] = mapped_column(String, primary_key=True)   # HOME | AWAY
+    payload: Mapped[str] = mapped_column(String)                  # JSON
+    built_at: Mapped[str] = mapped_column(String)
+
+
 class KnowledgeRecordRow(Base):
     """One datum of the Dataset Fusion, persisted (Phase B).
 

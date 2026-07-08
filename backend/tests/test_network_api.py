@@ -45,3 +45,31 @@ def test_network_payload_empty():
 
 def test_network_endpoint_404_unknown_match(client):
     assert client.get("/matches/nope/network").status_code == 404
+
+
+def test_network_endpoint_serves_from_canonical_store(client, db_session):
+    """The serving path reads the persisted network, never a provider."""
+    import json
+
+    from app.models import Match, PassingNetworkRow
+
+    db_session.add(Match(id="mnet", competition="9", season="281",
+                         home_team="Alpha", away_team="Beta"))
+    stored = {"team": "Alpha", "side": "HOME", "nodes": [{"id": "1"}],
+              "edges": [], "robustness": 0.4, "dependence": 0.2}
+    db_session.add(PassingNetworkRow(match_id="mnet", side="HOME",
+                                     payload=json.dumps(stored), built_at="now"))
+    db_session.commit()
+
+    body = client.get("/matches/mnet/network?side=HOME").json()
+    assert body["team"] == "Alpha" and body["nodes"] == [{"id": "1"}]
+
+
+def test_network_endpoint_503_when_never_built(client, db_session):
+    from app.models import Match
+
+    db_session.add(Match(id="mbare", competition="9", season="281",
+                         home_team="Alpha", away_team="Beta"))
+    db_session.commit()
+    # No stored network and no raw cache for this id -> honest 503.
+    assert client.get("/matches/mbare/network").status_code == 503

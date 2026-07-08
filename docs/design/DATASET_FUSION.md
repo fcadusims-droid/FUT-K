@@ -114,6 +114,52 @@ simulator is handed before kick-off (§Knowledge Base for Simulation):
   to admit simulated data into the base without an explicit audit — and even then
   keeps it in the `SIMULATED` layer, never mistaken for observed fact.
 
+## The pipeline: Raw → Normalized → Canonical → Knowledge → AI
+
+No FUT-K consumer reads a provider. Everything external flows through one
+pipeline and becomes FUT-K's own dataset before anything else touches it
+([`src/fie/canonical.py`](../../src/fie/canonical.py)):
+
+```text
+   External providers  (StatsBomb · Opta · FBref · Transfermarkt · CSV · JSON)
+            │
+            ▼
+   Raw        kept exactly as it arrived, never modified (raw_record, EXTERNAL)
+            │
+            ▼
+   Normalized same values, unified field & entity names (normalize_entity/person)
+            │
+            ▼
+   Canonical  FUT-K's own global ids via identity resolution, validated,
+            │  cross-checked — the single source of truth (canonical_*_id)
+            ▼
+   Knowledge  the knowledge_records store: timelines, provenance, behavior, context
+            │
+            ▼
+   AI         simulation · scouting · tactics · prediction · digital twin
+```
+
+**Identity resolution** gives FUT-K its own entities: the same team across every
+provider spelling maps to one `canonical_team_id`; the same player maps to one
+`canonical_player_id`, merged **only on shared evidence** — a common external key
+(e.g. a Wikidata QID), name + birth date, or the alias registry — never on a fuzzy
+guess (ambiguous names are surfaced, not silently merged). Swap StatsBomb for Opta
+in five years and the consumers never notice: they depend on the canonical dataset,
+not the source.
+
+## Architecture rule: no module consumes external data directly
+
+This is a project rule, enforced like the layer-dependency rule
+([`tests/test_data_boundary.py`](../../tests/test_data_boundary.py)): only the
+**ingestion boundary** — the `fie.sources` connectors and a small allowlist of
+backend ingestion modules (`ingest`, `livefeed`, `learningloop`, `twin`,
+`network`) — may import a provider or open a network connection. Simulation,
+scouting, tactics, the panel, and the API's serving path must read the canonical
+store, never a source. A regression fails the build. (The engine already obeyed
+this; the fix that brought the backend into line moved the `/network` endpoint to
+serve from the persisted `passing_networks` store instead of reading raw
+StatsBomb at request time — mirroring the Digital Twin's `ReplayStream`.)
+
 ## Vision → reality map
 
 Status: ✅ shipped · 🟡 partial · ⬜ planned.
