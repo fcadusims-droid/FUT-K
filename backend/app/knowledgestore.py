@@ -219,6 +219,22 @@ def knowledge_graph(session: Session, *, entity=None, relation=None,
     return graph.to_dict(limit=limit)
 
 
+def sync_export(session: Session, policy, limit: int = 200) -> dict:
+    """The records the institution has allowed to sync (Federation export set).
+
+    Applies the data-sovereignty ``policy`` to the whole store; only records the
+    policy marks syncable leave — deny by default (``fie.sovereignty``).
+    """
+    from fie.sovereignty import syncable
+
+    allowed = syncable(_load_all(session), policy)
+    return {
+        "policy": policy.to_dict(),
+        "count": len(allowed),
+        "records": [r.to_dict() for r in allowed[:limit]],
+    }
+
+
 def list_records(session: Session, kind=None, entity=None, layer=None,
                  match_id=None, current_only=False, limit=100) -> list:
     stmt = select(KnowledgeRecordRow)

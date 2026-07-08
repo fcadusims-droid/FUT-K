@@ -85,7 +85,9 @@ federated infrastructure, packaging — plus the non-code parts.
   `model_versions` + promotion gate are the right substrate for sharing knowledge
   and models with traceability and quality gates.
 - **Gap:** a node-to-node **sync protocol**; a "federation node" concept; model /
-  knowledge distribution; inter-node identity & trust; data-sovereignty controls.
+  knowledge distribution; inter-node identity & trust. *(Data-sovereignty controls
+  and the export set a node may share now exist — `fie.sovereignty` /
+  `/knowledge/sync-view`.)*
 - **Non-code (🔒):** federation governance, access policies, membership.
 
 ### 7. Local infrastructure / independence / edge / offline
@@ -93,9 +95,11 @@ federated infrastructure, packaging — plus the non-code parts.
   backend runs on SQLite with no external dependency; data is cached on disk and
   then works offline; determinism makes it reproducible offline; the
   no-direct-external rule means **consumers never need the internet**.
-- **Gap:** a pre-configured **appliance** distribution ("install, runs on power +
-  LAN only"); a **sync client** to the Federation (depends on §6); per-org
-  **data-sovereignty** policy controls; offline model distribution.
+- **Shipped:** the offline **appliance** compose (`deploy/appliance/`,
+  `FUTK_OFFLINE`) and per-org **data-sovereignty** controls (`fie.sovereignty`,
+  deny-by-default; `/sovereignty`, `/knowledge/sync-view`).
+- **Gap:** a **sync client** that actually ships the allowed export to a peer
+  (depends on §6); offline model distribution.
 
 ## The concrete path (readiness items, in order)
 
@@ -117,9 +121,12 @@ Buildable now, on the existing core, without fabricating data:
    (`fie.sources.tracking`, open 7-field CSV/JSON) that feeds the Vision Engine and
    the canonical pipeline — proving §1 interoperability and readying §2 (CV: the
    consumer exists, only the producer is missing).
-4. **Offline appliance packaging** — ⬜ a self-contained image/compose that runs
-   on power + LAN only (§7), with a data-sovereignty manifest (which layers stay
-   local vs. syncable).
+4. **Offline appliance packaging** — ✅ **done.**
+   [`deploy/appliance/`](../../deploy/appliance/): a compose that runs on power +
+   LAN only (`FUTK_OFFLINE=1` refuses external-provider endpoints), plus the
+   **data-sovereignty** primitive (`fie.sovereignty`, deny-by-default) exposed at
+   `GET /sovereignty` and `GET /knowledge/sync-view` (all a Federation sync client
+   could ever pull), driven by a manifest (`sovereignty.example.toml`).
 
 Beyond these lie the large programs (the CV subsystem, streaming at scale,
 multi-tenancy, the Federation sync protocol and its governance), each of which

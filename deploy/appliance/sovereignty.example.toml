@@ -1,0 +1,36 @@
+# FUT-K data-sovereignty manifest (example)
+#
+# Declares which knowledge may leave the institution and sync to the Federation.
+# The default is DENY — nothing syncs unless a rule below allows it, so
+# sovereignty holds even if this file is absent or misconfigured.
+#
+# Supply it to the backend as the FUTK_SOVEREIGNTY env var (JSON), e.g.:
+#   export FUTK_SOVEREIGNTY="$(python -c 'import tomllib,json,sys;
+#       print(json.dumps(tomllib.load(open(sys.argv[1],\"rb\"))))' \
+#       deploy/appliance/sovereignty.example.toml)"
+#
+# Resolution order (most specific first): a locked source -> always local; an
+# explicit kind rule; an explicit layer rule; else `default`.
+
+# Nothing leaves unless a rule below says so.
+default = "local_only"
+
+# By knowledge layer (fie.fusiondata.Layer). A conservative starting point:
+# share only derived aggregates and model probabilities; keep observed events,
+# raw external payloads and simulations home.
+[by_layer]
+observed = "local_only"
+external = "local_only"
+simulated = "local_only"
+derived = "syncable"
+probabilistic = "syncable"
+
+# By record kind — overrides the layer. Keep personal player DNA local even
+# though it is a derived layer.
+[by_kind]
+player_profile = "local_only"
+behavioral_profile = "local_only"
+player_embedding = "local_only"
+
+# Sources whose data never leaves, whatever the rules above (e.g. medical).
+local_sources = ["club-medical", "internal-scouting"]

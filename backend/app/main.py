@@ -316,7 +316,14 @@ def live_footballdata(
     returns only the scoreboard (score/status/minute) and no events flow.
     """
     from . import live
+    from .config import get_settings
     from .livefeed import fetch_live_match, sync_live_db
+
+    if get_settings().offline:
+        raise HTTPException(
+            status_code=503,
+            detail="offline mode: the external live feed is disabled "
+                   "(FUTK_OFFLINE); FUT-K runs on power + LAN only")
 
     try:
         match = fetch_live_match(fd_id)
@@ -621,6 +628,30 @@ def knowledge_as_of(
         raise HTTPException(status_code=404,
                             detail=f"no {kind} known for {entity} as of {at}")
     return result
+
+
+@app.get("/sovereignty")
+def sovereignty_policy() -> dict:
+    """The active data-sovereignty policy (readiness item 4).
+
+    Which knowledge may leave the institution — deny by default. Configured via
+    the ``FUTK_SOVEREIGNTY`` manifest; absent means nothing syncs."""
+    from .sovereignty import active_policy
+
+    return active_policy().to_dict()
+
+
+@app.get("/knowledge/sync-view")
+def knowledge_sync_view(
+    limit: int = Query(200, ge=1, le=2000),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The Federation export set: only the records the sovereignty policy allows
+    to leave (empty by default). This is all a sync client can ever pull."""
+    from .knowledgestore import sync_export
+    from .sovereignty import active_policy
+
+    return sync_export(db, active_policy(), limit=limit)
 
 
 @app.get("/knowledge/graph")
