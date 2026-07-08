@@ -33,6 +33,7 @@ MODULE_LAYER = {
     "fusiondata": "inference",  # Dataset Fusion: the unified knowledge substrate
     "dynamics": "inference",    # Dynamic Knowledge Management: temporal versions
     "worldstate": "inference",  # Knowledge Base for Simulation: pre-match state
+    "knowledgemap": "inference",  # Phase C: lift engine outputs into the contract
     "simulation": "inference",
     "strategy": "inference",
     "vision": "inference",

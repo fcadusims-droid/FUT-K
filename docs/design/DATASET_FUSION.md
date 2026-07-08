@@ -172,10 +172,15 @@ admitted only through `gate_incorporation` (`store_simulation`), and the
 `/knowledge/records|history|as-of|audit` endpoints expose it. Tested in
 `backend/tests/test_knowledge_api.py`.
 
-**Phase C — lift existing derived/probabilistic/simulated outputs ⬜.** Re-home
-player/match embeddings, profiles and scout indices as `DERIVED` records, and
-`/simulate` outputs as `SIMULATED` records — each citing its evidence — with no
-new math, only the contract applied.
+**Phase C — lift existing derived/probabilistic/simulated outputs ✅.**
+`src/fie/knowledgemap.py` wraps the engine's own outputs into the contract with
+**no new math**: the panel's predictions as `PROBABILISTIC` records, a Future
+Simulation as `SIMULATED` records, profiles and embeddings as `DERIVED` — each
+citing the model that produced it (`make_record` refuses an inferred datum with
+no evidence). `POST /knowledge/capture/{match_id}` persists a minute's
+predictions (`capture_panel`) and simulation (`capture_simulation`, through the
+audit gate); reads stay leakage-safe. Tested in `tests/test_knowledgemap.py` and
+`backend/tests/test_knowledge_capture.py`.
 
 **Phase D — new categories ⬜.** Contextual data (weather/altitude/rest/market),
 behavioral indices, then the unstructured/NLP stage — each entering through the
