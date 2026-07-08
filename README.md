@@ -424,6 +424,12 @@ Match*, the twelve intelligences, and the honest-risks list — is
 with its executable companion
 [`docs/design/validation_test_plan.md`](./docs/design/validation_test_plan.md).
 
+The **Dataset Fusion** — the unified knowledge substrate that keeps every datum
+tied to its context, provenance and moment in time, and makes it impossible to
+mix data across the boundaries that give it meaning — is
+[`docs/design/DATASET_FUSION.md`](./docs/design/DATASET_FUSION.md)
+(the integrity & isolation contract in [`src/fie/fusiondata.py`](./src/fie/fusiondata.py)).
+
 ## Roadmap (product phase)
 
 Validation stage is closed — see [`validation/README.md`](./validation/README.md).

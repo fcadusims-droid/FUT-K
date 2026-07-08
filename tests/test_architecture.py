@@ -30,6 +30,7 @@ MODULE_LAYER = {
     "ratings": "inference",
     "plugins": "inference",
     "fusion": "inference",
+    "fusiondata": "inference",  # Dataset Fusion: the unified knowledge substrate
     "simulation": "inference",
     "strategy": "inference",
     "vision": "inference",
