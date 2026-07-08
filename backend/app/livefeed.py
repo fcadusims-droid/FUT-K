@@ -45,6 +45,22 @@ def sync_live(session, match: dict) -> int:
     return fed
 
 
+def sync_live_db(db, match_id: str, match: dict, params):
+    """DB-backed live sync: feed new provider events into the persisted session.
+
+    The store-backed twin of ``sync_live`` — the session state lives in the DB
+    (so any worker can serve it), and this diffs against the stored observation
+    log via ``live.feed``. Returns ``(fed, snapshot)`` or ``(0, None)`` if the
+    session does not exist. Idempotent, like the in-memory path.
+    """
+    from . import live
+
+    obs_list = list(observations_from_match(match))
+    result = live.feed(db, match_id, obs_list, params,
+                       tick_minute=current_minute(match))
+    return result if result is not None else (0, None)
+
+
 def fetch_live_match(fd_id: int, api_key: str | None = None) -> dict:
     """Fetch one football-data.org match's detail (needs a free key for events).
 

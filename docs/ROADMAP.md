@@ -97,6 +97,22 @@ Vision → shipped mapping, honest boundaries and the verified real-data run:
 | Evolved observability (tracing, dashboards, alerts on `/metrics`) | M | ⬜ |
 | Publish SDKs to PyPI / npm | S | ⬜ |
 
+## Phase 5 — Intelligence infrastructure (long-term vision) · 🟡 (foundation)
+
+The horizon: FUT-K as institutional-grade, universal, federated, run-anywhere
+infrastructure. Full vision and the honest state-vs-gap map:
+[`design/LONG_TERM_VISION.md`](./design/LONG_TERM_VISION.md). Readiness items,
+buildable now on the existing core:
+
+| Item | Effort | Status | Notes |
+|---|---|---|---|
+| **Externalize Live Mode sessions** (DB-backed, stateless) | M | ✅ | `live_sessions`/`live_observations`; any worker rebuilds any session — the horizontal-scale/edge blocker, removed |
+| Knowledge Graph over the canonical store | L | ⬜ | queryable entity/relation graph over time; feeds institutional integration, continuous learning, federation |
+| Institutional connector SDK + reference tracking connector | L | ⬜ | formalize `Source` ABC + canonical pipeline; opens the door to real-time CV |
+| Offline **appliance** packaging + data-sovereignty manifest | M | ⬜ | "install, runs on power + LAN only" (edge/independence) |
+| Real-time computer-vision ingestion | L | 🔒 | Vision Engine is architected for a dense tracking feed; the CV producer needs ML/GPU + data |
+| Federation sync protocol + governance | L | 🔒 | canonical provenance/versioning is the substrate; needs distributed-systems build + governance |
+
 ---
 
 ## Cross-cutting — performance & scale

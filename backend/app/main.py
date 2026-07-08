@@ -265,13 +265,15 @@ def simulate(
 
 @app.post("/live/{match_id}/start")
 def live_start(match_id: str, db: Session = Depends(get_db)) -> dict:
-    """Open a Live Mode session for a match (empty; fed by observations)."""
+    """Open a Live Mode session for a match (empty; fed by observations).
+
+    Session state is persisted (``live_sessions``/``live_observations``), so any
+    worker can serve it — no in-process session."""
     from . import live
 
     m = _get_match(db, match_id)
-    session = live.start(match_id, m.home_team or "HOME", m.away_team or "AWAY",
-                         get_active_params(db))
-    return session.snapshot()
+    return live.start(db, match_id, m.home_team or "HOME", m.away_team or "AWAY",
+                      get_active_params(db))
 
 
 @app.post("/live/{match_id}/observe")
@@ -282,22 +284,21 @@ def live_observe(match_id: str, obs: dict, db: Session = Depends(get_db)) -> dic
     """
     from . import live
 
-    session = live.get(match_id)
-    if session is None:
+    if not live.exists(db, match_id):
         raise HTTPException(status_code=404, detail="no live session; POST /start first")
     if obs.get("team") not in ("HOME", "AWAY") or not obs.get("type"):
         raise HTTPException(status_code=422, detail="obs needs team HOME/AWAY and a type")
-    return session.observe(obs)
+    return live.observe(db, match_id, obs, get_active_params(db))
 
 
 @app.get("/live/{match_id}/state")
-def live_state(match_id: str) -> dict:
+def live_state(match_id: str, db: Session = Depends(get_db)) -> dict:
     from . import live
 
-    session = live.get(match_id)
-    if session is None:
+    snap = live.state(db, match_id, get_active_params(db))
+    if snap is None:
         raise HTTPException(status_code=404, detail="no live session")
-    return session.snapshot()
+    return snap
 
 
 @app.post("/live/{match_id}/footballdata")
@@ -315,7 +316,7 @@ def live_footballdata(
     returns only the scoreboard (score/status/minute) and no events flow.
     """
     from . import live
-    from .livefeed import fetch_live_match, sync_live
+    from .livefeed import fetch_live_match, sync_live_db
 
     try:
         match = fetch_live_match(fd_id)
@@ -328,10 +329,11 @@ def live_footballdata(
 
     home = (match.get("homeTeam") or {}).get("name") or "HOME"
     away = (match.get("awayTeam") or {}).get("name") or "AWAY"
-    session = live.get(match_id) or live.start(match_id, home, away, get_active_params(db))
-    new_events = sync_live(session, match)
+    params = get_active_params(db)
+    if not live.exists(db, match_id):
+        live.start(db, match_id, home, away, params)
+    new_events, snap = sync_live_db(db, match_id, match, params)
 
-    snap = session.snapshot()
     snap["new_events"] = new_events
     snap["source"] = "football-data.org"
     snap["fd_status"] = match.get("status")
@@ -352,20 +354,19 @@ def live_replay_feed(
     the batch panel at ``upto`` (the honest proof the streaming path changed
     nothing); the response includes ``matches_batch`` = True/False.
     """
-    from . import live
+    from .live import LiveMatch
 
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
     params = get_active_params(db)
-    session = live.start(match_id + "::live", m.home_team or "HOME",
-                         m.away_team or "AWAY", params)
+    # A self-contained in-memory replay (no persisted session needed for a demo).
+    session = LiveMatch(match_id, m.home_team or "HOME", m.away_team or "AWAY", params)
     for e in events:
         if e.minute > upto:
             continue
         session.observe({"minute": e.minute, "team": e.team, "type": e.type,
                          "x": e.x, "y": e.y, "player_id": e.player_id})
     session.tick(upto)                 # the clock reaches `upto`, as a feed's would
-    live.stop(match_id + "::live")
     snap = session.snapshot()
     batch = panel_state(events, upto, match_id=match_id, params=params)
     snap["matches_batch"] = (snap["panel"]["predictions"] == batch["predictions"]

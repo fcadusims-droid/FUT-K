@@ -66,9 +66,6 @@ def test_endpoint_returns_insights(client, monkeypatch):
     import app.livefeed as lf
 
     monkeypatch.setattr(lf, "fetch_live_match", lambda fd_id, api_key=None: MATCH)
-    try:
-        body = client.post("/live/game_ins/footballdata?fd_id=900").json()
-        goal_beats = [b for b in body["insights"] if b["headline"].startswith("Goal")]
-        assert len(goal_beats) == 3                 # all three goals narrated live
-    finally:
-        live.stop("game_ins")
+    body = client.post("/live/game_ins/footballdata?fd_id=900").json()
+    goal_beats = [b for b in body["insights"] if b["headline"].startswith("Goal")]
+    assert len(goal_beats) == 3                 # all three goals narrated live

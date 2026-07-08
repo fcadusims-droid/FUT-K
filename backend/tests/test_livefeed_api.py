@@ -51,15 +51,13 @@ def test_endpoint_feeds_session_and_is_idempotent(client, monkeypatch):
     import app.livefeed as lf
 
     monkeypatch.setattr(lf, "fetch_live_match", lambda fd_id, api_key=None: MATCH)
-    try:
-        body = client.post("/live/game1/footballdata?fd_id=900").json()
-        assert body["new_events"] == 4
-        assert body["panel"]["score"] == {"home": 2, "away": 1}
-        assert body["source"] == "football-data.org" and body["fd_status"] == "IN_PLAY"
+    body = client.post("/live/game1/footballdata?fd_id=900").json()
+    assert body["new_events"] == 4
+    assert body["panel"]["score"] == {"home": 2, "away": 1}
+    assert body["source"] == "football-data.org" and body["fd_status"] == "IN_PLAY"
 
-        assert client.post("/live/game1/footballdata?fd_id=900").json()["new_events"] == 0
-    finally:
-        live.stop("game1")
+    # Idempotent across calls — the diff is against the persisted observation log.
+    assert client.post("/live/game1/footballdata?fd_id=900").json()["new_events"] == 0
 
 
 def test_endpoint_404_when_match_missing(client, monkeypatch):
