@@ -432,6 +432,11 @@ the simulator a leakage-free pre-match state — is
 [`docs/design/DATASET_FUSION.md`](./docs/design/DATASET_FUSION.md)
 (`fie.fusiondata` · `fie.dynamics` · `fie.worldstate`).
 
+The **long-term vision** — FUT-K as institutional-grade, universal, federated,
+run-anywhere intelligence infrastructure, with an honest state-vs-gap map and the
+concrete path — is
+[`docs/design/LONG_TERM_VISION.md`](./docs/design/LONG_TERM_VISION.md).
+
 ## Roadmap (product phase)
 
 Validation stage is closed — see [`validation/README.md`](./validation/README.md).

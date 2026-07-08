@@ -274,6 +274,47 @@ class FusedMatchRecord(Base):
     created_at: Mapped[str] = mapped_column(String)
 
 
+class LiveSession(Base):
+    """A Live-Mode session's durable marker (Edge/scale: state lives in the DB).
+
+    The session itself is *stateless compute*: its panel, vision, log and insights
+    are a deterministic function of the stored observations, so any worker can
+    rebuild and serve any live match from these rows — no in-process session,
+    the horizontal-scale prerequisite for the global/edge vision.
+    """
+
+    __tablename__ = "live_sessions"
+
+    match_id: Mapped[str] = mapped_column(String, primary_key=True)
+    home: Mapped[str | None] = mapped_column(String)
+    away: Mapped[str | None] = mapped_column(String)
+    minute: Mapped[float] = mapped_column(Float, default=0.0)
+    updated_at: Mapped[str] = mapped_column(String)
+
+
+class LiveObservation(Base):
+    """One observation fed into a live session — the ordered, replayable log.
+
+    Replaying these in ``seq`` order reproduces the live state exactly (the same
+    deterministic recomputation the batch panel uses), so the store is the single
+    source of truth and the "streamed == batch" guarantee is preserved.
+    """
+
+    __tablename__ = "live_observations"
+    __table_args__ = (Index("ix_live_obs_match_seq", "match_id", "seq"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    match_id: Mapped[str] = mapped_column(ForeignKey("live_sessions.match_id"))
+    seq: Mapped[int] = mapped_column(Integer)
+    minute: Mapped[float] = mapped_column(Float)
+    team: Mapped[str] = mapped_column(String)
+    type: Mapped[str] = mapped_column(String)
+    x: Mapped[float | None] = mapped_column(Float)
+    y: Mapped[float | None] = mapped_column(Float)
+    player_id: Mapped[str | None] = mapped_column(String)
+    player: Mapped[str | None] = mapped_column(String)
+
+
 class PassingNetworkRow(Base):
     """A team's passing network for one match — built at the ingestion boundary.
 

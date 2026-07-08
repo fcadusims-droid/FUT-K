@@ -47,6 +47,31 @@ def test_live_observe_requires_session_and_valid_obs(client, db_session):
                        json={"minute": 5, "team": "X", "type": "shot"}).status_code == 422
 
 
+def test_live_state_is_portable_across_workers(engine):
+    """The scale prerequisite: session state lives in the DB, not the process.
+
+    One 'worker' feeds observations; a *different* session (another worker) serves
+    the identical live state by rebuilding from the store."""
+    from sqlalchemy.orm import sessionmaker
+
+    from app import live
+    from fie.prediction import Params
+
+    make = sessionmaker(bind=engine)
+    a = make()
+    live.start(a, "portable", "H", "A", Params())
+    live.observe(a, "portable", {"minute": 23.0, "team": "HOME", "type": "goal"}, Params())
+    live.observe(a, "portable", {"minute": 40.0, "team": "AWAY", "type": "shot"}, Params())
+    a.close()
+
+    b = make()  # a fresh session == another worker, sharing only the database
+    snap = live.state(b, "portable", Params())
+    b.close()
+    assert snap is not None
+    assert snap["panel"]["score"] == {"home": 1, "away": 0}
+    assert snap["n_events"] == 2 and snap["minute"] == 40.0
+
+
 def test_replay_feed_matches_batch_panel_exactly(client, db_session):
     # The honest proof: streaming the real events one-by-one yields the same
     # panel the batch endpoint computes over the same slice.
