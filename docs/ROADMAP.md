@@ -109,7 +109,7 @@ buildable now on the existing core:
 | **Externalize Live Mode sessions** (DB-backed, stateless) | M | ✅ | `live_sessions`/`live_observations`; any worker rebuilds any session — the horizontal-scale/edge blocker, removed |
 | **Knowledge Graph over the canonical store** | L | ✅ | `fie.graph` + `GET /knowledge/graph`: player↔team↔match↔competition, edges carry temporal validity + provenance, `as_of` queries; feeds institutional integration, continuous learning, federation |
 | **Institutional connector SDK + reference tracking connector** | L | ✅ | [`CONNECTORS.md`](./design/CONNECTORS.md) + `fie.sources.tracking` (open CSV/JSON, feeds the Vision Engine + canonical pipeline); opens the door to real-time CV |
-| Offline **appliance** packaging + data-sovereignty manifest | M | ⬜ | "install, runs on power + LAN only" (edge/independence) |
+| **Offline appliance packaging + data-sovereignty manifest** | M | ✅ | [`deploy/appliance/`](../deploy/appliance/): `FUTK_OFFLINE` runtime + `fie.sovereignty` (deny-by-default) at `/sovereignty` · `/knowledge/sync-view` |
 | Real-time computer-vision ingestion | L | 🔒 | Vision Engine is architected for a dense tracking feed; the CV producer needs ML/GPU + data |
 | Federation sync protocol + governance | L | 🔒 | canonical provenance/versioning is the substrate; needs distributed-systems build + governance |
 

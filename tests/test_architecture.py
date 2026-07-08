@@ -38,6 +38,7 @@ MODULE_LAYER = {
     "behavior": "knowledge",      # Phase D: behavioral indices from events
     "canonical": "inference",     # the source-agnostic canonical pipeline
     "graph": "inference",         # Knowledge Graph over the canonical store
+    "sovereignty": "inference",   # data-sovereignty policy (local vs syncable)
     "simulation": "inference",
     "strategy": "inference",
     "vision": "inference",

@@ -1,0 +1,57 @@
+# FUT-K Offline Appliance — runs on power + LAN only, no internet at runtime.
+#
+# Independence & edge (docs/design/LONG_TERM_VISION.md §7): once the images are
+# built (which needs the internet once), this stack serves entirely offline. No
+# service reaches an external provider — FUTK_OFFLINE disables the live feed, and
+# data sovereignty is deny-by-default until you supply a manifest.
+#
+#   docker compose -f deploy/appliance/docker-compose.offline.yml up --build
+#   # then open http://<appliance-host>:8080 on the local network
+#
+# Ingest happens on the appliance from local/cached data; nothing leaves unless
+# the sovereignty manifest allows it.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: futk
+      POSTGRES_PASSWORD: ${FUTK_DB_PASSWORD:-futk_dev_pw}
+      POSTGRES_DB: futk
+    volumes:
+      - futk_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futk"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://futk:${FUTK_DB_PASSWORD:-futk_dev_pw}@postgres:5432/futk
+      # Appliance switches:
+      FUTK_OFFLINE: "1"                       # refuse any external-provider endpoint
+      # Data sovereignty: deny by default. Point this at a mounted manifest to
+      # allow specific layers/kinds to sync (see sovereignty.example.toml).
+      FUTK_SOVEREIGNTY: ${FUTK_SOVEREIGNTY:-}
+      FUTK_API_KEYS: ${FUTK_API_KEYS:-}
+      FUTK_RATE_LIMIT: ${FUTK_RATE_LIMIT:-120}
+    volumes:
+      - futk_sbcache:/srv/futk/.sb_cache      # local raw cache (no downloads at serve)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ../../frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  futk_pgdata:
+  futk_sbcache:
