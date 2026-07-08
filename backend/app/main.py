@@ -682,6 +682,35 @@ def knowledge_capture(
     return out
 
 
+@app.post("/knowledge/capture-context/{match_id}")
+def knowledge_capture_context(match_id: str, db: Session = Depends(get_db)) -> dict:
+    """Phase D: capture a match's deterministic context into the store.
+
+    Venue, rest days and fixture congestion (from the calendar already ingested)
+    as OBSERVED contextual records, plus the competition's strength as a DERIVED
+    aggregate. No external feed; nothing invented."""
+    from .knowledgestore import capture_context
+
+    _get_match(db, match_id)
+    return capture_context(db, match_id)
+
+
+@app.post("/knowledge/capture-behavior/{player_id}")
+def knowledge_capture_behavior(player_id: str, db: Session = Depends(get_db)) -> dict:
+    """Phase D: capture a player's behavioral indices into the store.
+
+    Decision Stability, Pressure Resistance, Aggression Control, Resilience and a
+    Confidence Curve derived from observed events — honestly abstaining (with a
+    stated reason) on any index the data cannot support (Leadership, Recovery
+    Behavior, Tactical Discipline)."""
+    from .knowledgestore import capture_behavior
+
+    result = capture_behavior(db, player_id)
+    if result.get("note") == "player profile not found":
+        raise HTTPException(status_code=404, detail=f"no profile for player {player_id}")
+    return result
+
+
 @app.get("/matches/{match_id}/state/human")
 def match_state_human(
     match_id: str,

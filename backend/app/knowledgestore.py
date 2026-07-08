@@ -33,6 +33,7 @@ from fie.fusiondata import (
     check_derivation_evidence,
     check_provenance,
     from_fused_fields,
+    make_record,
 )
 from fie.fusion import fuse_match
 
@@ -294,4 +295,102 @@ def capture_simulation(session: Session, match_id: str, minute: float,
     records = simulation_records(sim, context)
     result = store_simulation(session, records, audited=True)
     result["kind"] = "simulation"
+    return result
+
+
+# --------------------------------------------------------------------------- #
+# Phase D — deterministic contextual data + behavioral indices
+# --------------------------------------------------------------------------- #
+def capture_context(session: Session, match_id: str) -> dict:
+    """Persist a match's deterministic context (venue, rest, congestion).
+
+    Venue is a fact; rest days and fixture congestion are derived from the
+    calendar already in the DB — no external feed. Stored as OBSERVED contextual
+    records (one per team), plus the competition's strength (mean goals/match) as
+    a DERIVED aggregate citing its evidence.
+    """
+    from fie.context import competition_strength, match_context
+    from fie.knowledgemap import derived_record
+
+    from .models import Match
+
+    m = session.get(Match, match_id)
+    if m is None:
+        return {"stored": 0, "updated": 0, "note": "match not found"}
+
+    def _team_dates(team):
+        rows = session.execute(
+            select(Match).where((Match.home_team == team) | (Match.away_team == team))
+        ).scalars().all()
+        return [r.match_date for r in rows if r.match_date]
+
+    records = []
+    for team, is_home in ((m.home_team, True), (m.away_team, False)):
+        if not team:
+            continue
+        facts = match_context(team, is_home, _team_dates(team), m.match_date or "")
+        records.append(make_record(
+            kind="team_context",
+            value={k: facts[k] for k in ("venue", "rest_days", "fixture_congestion")},
+            layer=Layer.OBSERVED,
+            context=Context(match_id=match_id, team=team, date=m.match_date,
+                            competition=m.competition),
+            provenance=Provenance(source="calendar", ingested_by="capture_context"),
+        ))
+    result = store_records(session, records)
+
+    # Competition strength — a derived aggregate over the competition's fixtures.
+    if m.competition:
+        comp_rows = session.execute(
+            select(Match).where(Match.competition == m.competition)
+        ).scalars().all()
+        gpm = [
+            (r.home_goals_final + r.away_goals_final)
+            for r in comp_rows
+            if r.home_goals_final is not None and r.away_goals_final is not None
+        ]
+        strength = competition_strength(gpm)
+        if strength is not None:
+            store_records(session, [derived_record(
+                "competition_strength", strength,
+                Context(competition=m.competition),
+                pipeline_version="context/competition_strength")])
+            result["competition_strength"] = strength
+    result["kind"] = "context"
+    return result
+
+
+def capture_behavior(session: Session, player_id: str) -> dict:
+    """Persist a player's behavioral indices as one DERIVED record.
+
+    Reads the player's DNA profile (for the share-based indices) and their events
+    (for discipline and the involvement curve); indices the data cannot support
+    abstain honestly. Nothing is fabricated.
+    """
+    from fie.behavior import behavioral_profile
+    from fie.knowledgemap import behavior_record
+    from fie.events import Event
+
+    from .models import MatchEvent, PlayerProfile
+
+    row = session.get(PlayerProfile, player_id)
+    if row is None:
+        return {"stored": 0, "updated": 0, "note": "player profile not found"}
+    profile = {
+        "player_id": player_id,
+        "pass_accuracy": row.pass_accuracy,
+        "turnover_rate": row.turnover_rate,
+        "actions": row.actions,
+        "confidence": row.confidence,
+    }
+    ev_rows = session.execute(
+        select(MatchEvent).where(MatchEvent.player_id == player_id)
+    ).scalars().all()
+    events = [Event(match_id=e.match_id, minute=e.minute, team=e.team, type=e.type,
+                    player_id=e.player_id) for e in ev_rows]
+    indices = behavioral_profile(profile, events=events)
+    result = store_records(session, [behavior_record(
+        indices, Context(player_id=player_id), confidence=row.confidence)])
+    result["kind"] = "behavior"
+    result["indices"] = indices
     return result
