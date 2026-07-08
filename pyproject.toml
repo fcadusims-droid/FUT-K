@@ -7,7 +7,7 @@ name = "fie"
 version = "0.1.0"
 description = "FUT-K — Football Intelligence Engine (core library)"
 authors = [{ name = "João Vitor Perazzolo (Johnny Kestler)" }]
-license = { text = "AGPL-3.0-or-later" }
+license = { text = "Proprietary" }
 readme = "README.md"
 requires-python = ">=3.11"
 # src/fie itself is dependency-free (standard library only), matching the

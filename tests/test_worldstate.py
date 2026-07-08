@@ -2,7 +2,7 @@
 
 The simulator is handed knowledge as it was known before kick-off; nothing from
 the future can enter, and simulated output stays independent until audited
-(docs/design/DATASET_FUSION.md §Base de Conhecimento para Simulação).
+(docs/design/DATASET_FUSION.md §Knowledge Base for Simulation).
 """
 
 from __future__ import annotations

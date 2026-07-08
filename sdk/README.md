@@ -63,4 +63,5 @@ const twins = await fk.similar('7525')
 | benchmarks | `GET /benchmarks` |
 | fusion | `GET /fusion/records?team=&league=&conflicts_only=` |
 
-Both SDKs are AGPL-3.0, © 2026 João Vitor Perazzolo (Johnny Kestler).
+Both SDKs are proprietary — all rights reserved, © 2026 João Vitor Perazzolo
+(Johnny Kestler). See [`LICENSE`](../LICENSE).

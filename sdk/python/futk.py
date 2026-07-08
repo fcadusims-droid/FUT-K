@@ -13,7 +13,7 @@ Usage:
     print(fk.ask("7525", "why did Saudi Arabia lose?")["answer"])
 
 Standard library only (urllib). Copyright (c) 2026 João Vitor Perazzolo
-(Johnny Kestler). AGPL-3.0 — see the repository LICENSE.
+(Johnny Kestler). Proprietary — all rights reserved; see the repository LICENSE.
 """
 
 from __future__ import annotations

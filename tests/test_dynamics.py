@@ -2,7 +2,7 @@
 
 Versions append (never overwrite), permanent changes settle while temporary ones
 revert, and any date resolves to the state valid then — deterministically
-(docs/design/DATASET_FUSION.md §Gestão Dinâmica).
+(docs/design/DATASET_FUSION.md §Dynamic Knowledge).
 """
 
 from __future__ import annotations

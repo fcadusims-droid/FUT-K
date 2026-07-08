@@ -3,7 +3,7 @@
 The simulation engine never plays in a vacuum. Before kick-off it is handed a
 **knowledge state** assembled by the Dataset Fusion: the consolidated view of the
 teams, players, coaches and history *as they were known before the match*
-(docs/design/DATASET_FUSION.md §Base de Conhecimento para Simulação). Every
+(docs/design/DATASET_FUSION.md §Knowledge Base for Simulation). Every
 probabilistic decision then rests on that prior knowledge — and on nothing from
 the future.
 
