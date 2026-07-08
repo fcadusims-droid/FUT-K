@@ -491,9 +491,15 @@ version. See [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) and
 
 **FUT-K** — created by **João Vitor Perazzolo** (*Johnny Kestler*).
 
-- Code: **AGPL-3.0** (see [`LICENSE`](./LICENSE)) — use it, study it, improve
-  it; improvements stay open.
-- Commercial licensing available separately — see [`LICENSING.md`](./LICENSING.md).
-- Contributions are accepted under the [`CLA`](./CLA.md).
+- **Proprietary — all rights reserved.** FUT-K is proprietary software; every
+  asset (source, docs, architecture, AI models and weights, the Dataset Fusion,
+  knowledge bases, algorithms, benchmarks, tests, visual identity and the "FUT-K"
+  name) belongs exclusively to the author. No use, copying, modification,
+  derivative works, distribution or forking is permitted without the author's
+  prior, express authorization. See [`LICENSE`](./LICENSE) for the full terms.
+- Usage & commercial licenses are granted **in writing, by the author only** —
+  see [`LICENSING.md`](./LICENSING.md).
+- Contributions may be incorporated only under the [`CLA`](./CLA.md) (assignment
+  of economic rights to the author; see clause 7 of the LICENSE).
 - Match data: [StatsBomb Open Data](https://github.com/statsbomb/open-data),
   under StatsBomb's own non-commercial terms (not redistributed here).

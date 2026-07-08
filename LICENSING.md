@@ -1,52 +1,36 @@
 # FUT-K licensing
 
-FUT-K is dual-licensed.
+FUT-K is **proprietary software**. All rights are reserved to the author,
+**João Vitor Perazzolo (Johnny Kestler)**. The full terms are in
+[`LICENSE`](./LICENSE).
 
-## Community Edition — AGPL-3.0
+## Use
 
-The code in this repository is licensed under the
-**GNU Affero General Public License v3.0** (see [`LICENSE`](./LICENSE)).
+No use, copying, modification, creation of derivative versions, distribution,
+publication of forks, redistribution of documentation, reuse of algorithms, or
+reproduction of the architecture is permitted without the author's prior and
+express authorization. No right is granted implicitly.
 
-You are free to:
+## Usage & commercial licenses
 
-- ✔ use FUT-K for research, education, and personal projects
-- ✔ study and modify the source
-- ✔ fork and redistribute it
-- ✔ run it for yourself, your club, or your academic group
-
-Under the AGPL-3.0 you must:
-
-- keep the copyright notice — **Copyright (c) 2026 João Vitor Perazzolo
-  (Johnny Kestler)** — intact;
-- license any derivative work under the AGPL-3.0 as well (improvements stay
-  open);
-- if you run a modified version as a network service (SaaS), make the modified
-  source available to its users.
-
-## Commercial Edition
-
-If you want to incorporate FUT-K into a proprietary product, distribute a
-closed-source derivative, or offer it as a service without the AGPL's
-source-sharing obligations, you need a **commercial license** granted by the
-copyright holder.
-
-For commercial licensing inquiries, contact the maintainer through this
-repository (open an issue or use the contact listed on the owner's GitHub
-profile).
+Any authorization to use FUT-K — including commercial use, licensing, SaaS,
+integration into products, resale or commercial hosting — must be granted
+**in writing and exclusively by the author**. To request a license, contact the
+author through this repository (open an issue or use the contact listed on the
+owner's GitHub profile).
 
 ## Contributions
 
-All contributions are accepted under the terms of the
-[Contributor License Agreement](./CLA.md): contributions are licensed under the
-project license (AGPL-3.0), and the maintainer is granted the rights needed to
-include them in the official project — including the commercially licensed
-edition. This keeps a single, unambiguous licensing story for the whole
-codebase.
+Contributions may only be incorporated upon the **assignment of the economic
+(patrimonial) rights to the author**, under the terms of the
+[Contributor License Agreement](./CLA.md) and clause 7 of the
+[`LICENSE`](./LICENSE). Submitting a contribution does not grant the contributor
+any right over the project as a whole.
 
 ## Data
 
 FUT-K's validation uses the free
 [StatsBomb Open Data](https://github.com/statsbomb/open-data), which is covered
-by StatsBomb's own user agreement (non-commercial use, attribution). The data
-is **not** part of this repository and is **not** covered by FUT-K's license —
+by StatsBomb's own user agreement (non-commercial use, attribution). That data is
+**not** part of this repository and is **not** covered by FUT-K's license —
 respect StatsBomb's terms when you download it.

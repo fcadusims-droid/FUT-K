@@ -257,3 +257,41 @@ def store_simulation(session: Session, sim_records, *, audited: bool) -> dict:
 
     admitted = gate_incorporation(sim_records, audited=audited)
     return store_records(session, admitted)
+
+
+# --------------------------------------------------------------------------- #
+# Phase C — capture the engine's own inferred outputs into the store
+# --------------------------------------------------------------------------- #
+def capture_panel(session: Session, panel: dict) -> dict:
+    """Persist a panel's predictions as PROBABILISTIC records for that minute.
+
+    The panel already carries its confidence; each predicted target lands as an
+    inferred record citing the Poisson model, pinned to (match, minute).
+    """
+    from fie.knowledgemap import prediction_records
+
+    context = Context(match_id=panel.get("match_id"), minute=panel.get("minute"))
+    records = prediction_records(
+        panel.get("predictions", {}), context,
+        confidence=panel.get("confidence"),
+    )
+    result = store_records(session, records)
+    result["kind"] = "predictions"
+    return result
+
+
+def capture_simulation(session: Session, match_id: str, minute: float,
+                       sim: dict) -> dict:
+    """Persist a Future Simulation result as gated SIMULATED records.
+
+    Goes through the same audit gate as any incorporated simulation
+    (``audited=True`` — this is the engine's own deterministic, seeded output,
+    captured deliberately), so the separation from observed fact is preserved.
+    """
+    from fie.knowledgemap import simulation_records
+
+    context = Context(match_id=match_id, minute=minute)
+    records = simulation_records(sim, context)
+    result = store_simulation(session, records, audited=True)
+    result["kind"] = "simulation"
+    return result

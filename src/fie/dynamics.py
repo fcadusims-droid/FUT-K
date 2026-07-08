@@ -2,7 +2,7 @@
 
 Football never holds still: players change position and club, coaches change
 scheme, shirt numbers change. So FUT-K treats **every attribute as a state in
-time, never a permanent fact** (docs/design/DATASET_FUSION.md §Gestão Dinâmica).
+time, never a permanent fact** (docs/design/DATASET_FUSION.md §Dynamic Knowledge).
 This module is the timeline machinery on top of the ``fie.fusiondata`` substrate:
 
 * the system never *overwrites* knowledge — a change **appends a new version**

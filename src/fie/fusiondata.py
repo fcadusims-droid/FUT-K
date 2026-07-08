@@ -42,8 +42,8 @@ from typing import Any, Optional
 
 # Schema version of the knowledge contract. Bump on any change to the record
 # shape or the isolation rules; it travels in provenance (pipeline_version) and
-# lets an audit reject records written under an incompatible schema (§Arquitetura
-# Defensiva: versionamento de esquemas).
+# lets an audit reject records written under an incompatible schema (§Defensive
+# Architecture: schema versioning).
 SCHEMA_VERSION = "1.1"
 
 
@@ -52,7 +52,7 @@ class IntegrityError(Exception):
 
 
 class Layer(str, Enum):
-    """The knowledge domain a datum belongs to (§Separação por Camadas).
+    """The knowledge domain a datum belongs to (§Layer Separation).
 
     The split exists so inference can never be confused with observation. The
     four factual layers record what was seen; the four inferred layers record
@@ -78,7 +78,7 @@ INFERRED_LAYERS = frozenset(
 
 
 # --------------------------------------------------------------------------- #
-# Context — the immutable identity of a datum (§Princípios de Isolamento)
+# Context — the immutable identity of a datum (§Isolation Principles)
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class Context:
@@ -129,7 +129,7 @@ class Context:
 
 
 # --------------------------------------------------------------------------- #
-# Provenance — the six questions every datum must answer (§Proveniência)
+# Provenance — the six questions every datum must answer (§Provenance)
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class Provenance:
@@ -175,7 +175,7 @@ class Provenance:
 
 
 # --------------------------------------------------------------------------- #
-# Temporal — validity in time (§Dados Temporais: nothing is permanent)
+# Temporal — validity in time (§Temporal Data: nothing is permanent)
 # --------------------------------------------------------------------------- #
 PERMANENT = "permanent"
 TEMPORARY = "temporary"
@@ -343,7 +343,7 @@ def make_record(
 # Defensive validators — prevent bad combinations by architecture, not vibes
 # --------------------------------------------------------------------------- #
 def check_provenance(record: KnowledgeRecord) -> None:
-    """Every datum must name a source (§Proveniência Completa)."""
+    """Every datum must name a source (§Complete Provenance)."""
     if not record.provenance.source:
         raise IntegrityError(
             f"record {record.kind!r} has no source — no datum may exist without "
@@ -444,7 +444,7 @@ def assert_player_single_team(records) -> None:
 def check_referential_integrity(
     records, known_players=None, known_matches=None
 ) -> None:
-    """Relationships must resolve to valid entities (§Integridade Referencial).
+    """Relationships must resolve to valid entities (§Referential Integrity).
 
     * an event (anything anchored to a minute/event) must belong to a match;
     * a datum about a player must reference a known player, when a roster is

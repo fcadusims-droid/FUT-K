@@ -5,7 +5,7 @@
 > temporal and contextual representation of football. It is a **knowledge
 > model**, not a database — integrating observed, derived, semantic and
 > probabilistic knowledge, while guaranteeing that data from different matches,
-> seasons, competitions, players or sources is **never mixed indebidamente**.
+> seasons, competitions, players or sources is **never improperly mixed**.
 
 This document states that target, maps it honestly against what FUT-K ships
 today, and defines the phased plan. It obeys the project's founding invariants
@@ -80,7 +80,7 @@ an incompatible schema can be rejected.
 ## Dynamic Knowledge Management — knowledge as a temporal state
 
 [`src/fie/dynamics.py`](../../src/fie/dynamics.py) treats **every attribute as a
-state in time, never a permanent fact** (§Gestão Dinâmica do Conhecimento). It is
+state in time, never a permanent fact** (§Dynamic Knowledge Management). It is
 the timeline machinery over the substrate: each `Temporal` now also carries
 `permanence` (permanent vs temporary) and per-version `confidence`.
 
@@ -99,7 +99,7 @@ the timeline machinery over the substrate: each `Temporal` now also carries
 ## Knowledge Base for Simulation — the leakage-free pre-match state
 
 [`src/fie/worldstate.py`](../../src/fie/worldstate.py) assembles the knowledge the
-simulator is handed before kick-off (§Base de Conhecimento para Simulação):
+simulator is handed before kick-off (§Knowledge Base for Simulation):
 
 - **`assemble_state(records, as_of)`** resolves every entity attribute *as of* the
   cutoff via `dynamics.state_as_of`, so the simulator sees teams and players as
@@ -172,10 +172,15 @@ admitted only through `gate_incorporation` (`store_simulation`), and the
 `/knowledge/records|history|as-of|audit` endpoints expose it. Tested in
 `backend/tests/test_knowledge_api.py`.
 
-**Phase C — lift existing derived/probabilistic/simulated outputs ⬜.** Re-home
-player/match embeddings, profiles and scout indices as `DERIVED` records, and
-`/simulate` outputs as `SIMULATED` records — each citing its evidence — with no
-new math, only the contract applied.
+**Phase C — lift existing derived/probabilistic/simulated outputs ✅.**
+`src/fie/knowledgemap.py` wraps the engine's own outputs into the contract with
+**no new math**: the panel's predictions as `PROBABILISTIC` records, a Future
+Simulation as `SIMULATED` records, profiles and embeddings as `DERIVED` — each
+citing the model that produced it (`make_record` refuses an inferred datum with
+no evidence). `POST /knowledge/capture/{match_id}` persists a minute's
+predictions (`capture_panel`) and simulation (`capture_simulation`, through the
+audit gate); reads stay leakage-safe. Tested in `tests/test_knowledgemap.py` and
+`backend/tests/test_knowledge_capture.py`.
 
 **Phase D — new categories ⬜.** Contextual data (weather/altitude/rest/market),
 behavioral indices, then the unstructured/NLP stage — each entering through the

@@ -638,6 +638,50 @@ def knowledge_audit(db: Session = Depends(get_db)) -> dict:
         raise HTTPException(status_code=409, detail=f"store inconsistency: {exc}") from exc
 
 
+@app.post("/knowledge/capture/{match_id}")
+def knowledge_capture(
+    match_id: str,
+    minute: float = Query(..., ge=0, le=150),
+    simulate: bool = True,
+    n_sims: int = Query(2000, ge=100, le=50000),
+    seed: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Phase C: capture the engine's inferred knowledge for one minute.
+
+    Computes the panel and (optionally) a Future Simulation for ``match_id`` at
+    ``minute`` and persists them into the store — predictions as PROBABILISTIC
+    records, the simulation as gated SIMULATED records, each citing the model that
+    produced it. Idempotent by content-addressed id (same minute/seed re-captures
+    the same records). The reads themselves stay leakage-safe (events sliced at
+    ``minute``)."""
+    from fie.events import state_from_events
+    from fie.regime import detect_regime
+    from fie.simulation import simulate_forward
+
+    from .knowledgestore import capture_panel, capture_simulation
+    from .twin import real_duration_minutes
+
+    m = _get_match(db, match_id)
+    events = _load_events(db, match_id)
+    params = get_active_params(db)
+    panel = panel_state(events, minute, match_id=match_id, params=params)
+    out = {"minute": minute, "predictions": capture_panel(db, panel)}
+
+    if simulate:
+        duration = real_duration_minutes(db, m)
+        if duration is None:
+            duration = max((e.minute for e in events), default=90.0)
+        horizon = max(0.0, duration - minute)
+        state = state_from_events(match_id, events, minute)
+        events_until = [e for e in events if e.minute <= minute]
+        regime = detect_regime(state, events_until, params)
+        sim = simulate_forward(state, events, params, horizon_minutes=horizon,
+                               n_sims=n_sims, seed=seed, regime=regime)
+        out["simulation"] = capture_simulation(db, match_id, minute, sim)
+    return out
+
+
 @app.get("/matches/{match_id}/state/human")
 def match_state_human(
     match_id: str,

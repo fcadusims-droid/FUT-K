@@ -31,7 +31,7 @@ import urllib.parse
 import urllib.request
 
 API = "https://www.wikidata.org/w/api.php"
-USER_AGENT = "FUT-K/0.1 (open-source football research; AGPL)"
+USER_AGENT = "FUT-K/0.1 (football research)"
 FOOTBALLER_QID = "Q937857"  # occupation: association football player
 
 # Common football-position QIDs -> readable labels (documented, extensible).

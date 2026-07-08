@@ -7,7 +7,7 @@
  *   const panel = await fk.state('7525', 43)
  *   const chat = await fk.ask('7525', 'why did Saudi Arabia lose?')
  *
- * Copyright (c) 2026 João Vitor Perazzolo (Johnny Kestler). AGPL-3.0.
+ * Copyright (c) 2026 João Vitor Perazzolo (Johnny Kestler). Proprietary — all rights reserved.
  */
 
 export class FutK {
