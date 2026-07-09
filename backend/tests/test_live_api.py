@@ -82,3 +82,36 @@ def test_replay_feed_matches_batch_panel_exactly(client, db_session):
     assert feed["panel"]["score"] == batch["score"]
     assert feed["panel"]["predictions"] == batch["predictions"]
     assert feed["panel"]["regime"] == batch["regime"]
+
+
+def test_live_observe_validates_body_shape(client, db_session):
+    """A malformed feed gets a 422 naming the field — never a 500."""
+    mid = _seed(db_session, "liveD")
+    client.post(f"/live/{mid}/start")
+    assert client.post(f"/live/{mid}/observe",
+                       json={"team": "HOME", "type": "goal"}).status_code == 422
+    assert client.post(f"/live/{mid}/observe",
+                       json={"minute": "abc", "team": "HOME",
+                             "type": "goal"}).status_code == 422
+
+
+def test_live_rebuild_memo_is_pure_optimization(engine):
+    """The in-process rebuild memo never changes the served state: a warm
+    (memoized) snapshot equals a cold full replay from the store."""
+    from sqlalchemy.orm import sessionmaker
+
+    from app import live
+    from fie.prediction import Params
+
+    make = sessionmaker(bind=engine)
+    s = make()
+    live.start(s, "memo", "H", "A", Params())
+    for obs in ({"minute": 12.0, "team": "HOME", "type": "shot"},
+                {"minute": 23.0, "team": "HOME", "type": "goal"},
+                {"minute": 41.0, "team": "AWAY", "type": "goal"}):
+        live.observe(s, "memo", obs, Params())
+    warm = live.state(s, "memo", Params())
+    live._forget("memo")  # force the cold path: full deterministic replay
+    cold = live.state(s, "memo", Params())
+    s.close()
+    assert warm == cold

@@ -4,21 +4,9 @@ on:
   push:
   pull_request:
 
+# The backend suite runs in backend-tests.yml (3.11 + 3.12 matrix); this
+# workflow covers what that one does not: the frontend build and the images.
 jobs:
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install engine + backend
-        run: |
-          pip install -e .
-          pip install -e "./backend[dev]"
-      - name: Backend tests
-        run: pytest -q backend
-
   frontend:
     runs-on: ubuntu-latest
     steps:

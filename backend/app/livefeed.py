@@ -11,6 +11,7 @@ fed observation is a goal/card/substitution the provider actually reported.
 from __future__ import annotations
 
 import os
+from collections import Counter
 
 from fie.sources.footballdata import (
     FootballDataSource,
@@ -19,26 +20,31 @@ from fie.sources.footballdata import (
 )
 
 
-def _key(obs: dict) -> tuple:
-    return (round(float(obs["minute"]), 3), obs["type"], obs["team"], obs.get("player_id"))
+def _key(obs_or_event) -> tuple:
+    minute = obs_or_event["minute"] if isinstance(obs_or_event, dict) else obs_or_event.minute
+    type_ = obs_or_event["type"] if isinstance(obs_or_event, dict) else obs_or_event.type
+    team = obs_or_event["team"] if isinstance(obs_or_event, dict) else obs_or_event.team
+    return (round(float(minute), 3), type_, team)
 
 
 def sync_live(session, match: dict) -> int:
     """Feed every provider event not already in ``session``; advance its clock.
 
-    Returns the number of newly fed events. Idempotent: polling the same match
-    twice feeds nothing the second time (events are diffed by minute/type/team/
-    player), so it is safe to call on a fixed interval.
+    Returns the number of newly fed events. Idempotent by *occurrence count*
+    per ``(minute, type, team)``: polling the same match twice feeds nothing,
+    a genuinely new second event in the same minute (a quick brace) is fed,
+    and a provider that fills in the scorer on a later poll does not re-feed
+    the goal (the player is deliberately not part of the identity).
     """
-    seen = {
-        (round(e.minute, 3), e.type, e.team, e.player_id) for e in session.events
-    }
+    stored = Counter(_key(e) for e in session.events)
+    seen: Counter = Counter()
     fed = 0
     for obs in observations_from_match(match):
-        if _key(obs) in seen:
-            continue
+        key = _key(obs)
+        seen[key] += 1
+        if seen[key] <= stored[key]:
+            continue  # this occurrence was already fed
         session.observe(obs)
-        seen.add(_key(obs))
         fed += 1
     # Advance the clock to the provider's live minute even when no event landed.
     session.tick(current_minute(match))

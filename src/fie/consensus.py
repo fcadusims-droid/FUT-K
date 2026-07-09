@@ -2,6 +2,9 @@
 
 Reconciles every source into one diagnosis plus an agreement level. When sources
 disagree, that disagreement is itself information.
+
+Spec-completeness module: exercised by its numbered tests; not yet wired
+into the product serving path (integration is tracked in docs/ROADMAP.md).
 """
 
 from __future__ import annotations

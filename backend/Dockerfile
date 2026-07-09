@@ -11,6 +11,13 @@ COPY backend/app backend/app
 COPY backend/scripts backend/scripts
 RUN pip install --no-cache-dir -e . && pip install --no-cache-dir -e ./backend
 
+# Run as a non-root user; /srv/futk stays writable for the SQLite fallback
+# and the .sb_cache volume (chowned before the volume is first mounted).
+RUN useradd --system --uid 10001 futk \
+ && mkdir -p /srv/futk/.sb_cache \
+ && chown -R futk /srv/futk
+USER futk
+
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 WORKDIR /srv/futk/backend

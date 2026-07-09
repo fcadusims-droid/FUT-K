@@ -3,6 +3,9 @@
 When a hypothesis is confirmed, look for likely causes in the match itself. Causes
 are read from objective indicators, each with a documented trigger — explanatory
 hypotheses, not proven causation.
+
+Spec-completeness module: exercised by its numbered tests; not yet wired
+into the product serving path (integration is tracked in docs/ROADMAP.md).
 """
 
 from __future__ import annotations

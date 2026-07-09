@@ -205,6 +205,8 @@ curl -X POST "http://localhost:8000/live/mygame/footballdata?fd_id=<id>"
 The live twin builds a running score, a goal/card timeline and live **insights**
 (momentum swings, "the game changed") — deterministic, nothing invented.
 
+![Live Mode — the streamed panel and live insights](docs/images/app-live.png)
+
 ### 9. Drive it from code
 
 Everything the UI does is a REST call, and there are thin SDKs:
@@ -324,7 +326,7 @@ StatsBomb open data ──ingest──> PostgreSQL ──FastAPI──> React re
                                       │
                                engine: src/fie
                     (pure-Python, standard-library only,
-                     259 tests, leakage-safe by construction)
+                     354 tests, leakage-safe by construction)
 ```
 
 | Directory | What it is |
@@ -336,7 +338,7 @@ StatsBomb open data ──ingest──> PostgreSQL ──FastAPI──> React re
 | [`src/fie/`](./src/fie/) | the engine — one module per section of the design document (indices, Poisson prediction, regimes, confidence, players, narrative, calibration, learning, fusion) |
 | [`validation/`](./validation/) | **empirical validation**: datasets, methodology, metrics, baselines, negative results, and how to reproduce everything |
 | [`docs/design/`](./docs/design/) | the founding design document and the numbered validation test plan |
-| [`tests/`, `scripts/`](./tests/) | the engine's test suite (89 spec'd test IDs) and the real-data experiment scripts |
+| [`tests/`, `scripts/`](./tests/) | the engine's test suite (86 spec'd test IDs) and the real-data experiment scripts |
 
 ## Empirical validation — the evidence
 
@@ -346,7 +348,7 @@ results (full methodology, tables, and reproduction commands in
 
 | Claim | Evidence |
 |---|---|
-| Algorithms match their spec | 89 numbered synthetic tests, multi-seed Monte-Carlo, 348 tests green in CI |
+| Algorithms match their spec | 86 numbered synthetic tests, multi-seed Monte-Carlo, 473 tests green in CI (354 engine + 119 API) |
 | No information leakage | the **73:15 test** (§ below): 5,499 erase-the-future comparisons over all 611 matches, 100% byte-identical — enforced at engine **and** HTTP level on every push |
 | Calibrated on real football | walk-forward on WC 2018 (fitting closes a wrong prior: gap 0.040 → 0.025) **and** on all 380 La Liga 2015/16 matches (a right prior stays right: gap 0.009) |
 | **Externally anchored** | on real Bet365 odds, the ordering is exactly right: naive baseline (LL 1.050) < Elo (1.007) < **engine's Poisson (0.976)** < market (0.916) — sane machinery, no market-beating claims |
@@ -501,7 +503,10 @@ version. See [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) and
   knowledge bases, algorithms, benchmarks, tests, visual identity and the "FUT-K"
   name) belongs exclusively to the author. No use, copying, modification,
   derivative works, distribution or forking is permitted without the author's
-  prior, express authorization. See [`LICENSE`](./LICENSE) for the full terms.
+  prior, express authorization — with one narrow exception: cloning and running
+  FUT-K locally for personal, non-commercial evaluation (and forking solely to
+  submit a contribution under the CLA) is expressly permitted by LICENSE §2.1.
+  See [`LICENSE`](./LICENSE) for the full terms.
 - Usage & commercial licenses are granted **in writing, by the author only** —
   see [`LICENSING.md`](./LICENSING.md).
 - Contributions may be incorporated only under the [`CLA`](./CLA.md) (assignment

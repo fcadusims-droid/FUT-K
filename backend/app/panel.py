@@ -35,8 +35,9 @@ REGIME_LOOKBACK = 5.0  # minutes back to detect a regime transition
 INSTABILITY_ON_TRANSITION = 0.6
 
 
-def _row_to_event(row) -> Event:
-    """Map an ORM events row to the engine's Event."""
+def row_to_event(row) -> Event:
+    """Map an ORM events row to the engine's Event (public: main.py loads
+    events through this same mapping)."""
     return Event(
         match_id=row.match_id, minute=row.minute, team=row.team, type=row.type,
         player_id=row.player_id, target_id=row.target_id, x=row.x, y=row.y, xg=row.xg,

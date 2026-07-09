@@ -22,6 +22,8 @@ rebuilds; it just no longer *is* the session.
 
 from __future__ import annotations
 
+import threading
+from collections import Counter
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
@@ -133,8 +135,12 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _obs_key(o: dict) -> tuple:
-    return (round(float(o["minute"]), 3), o["type"], o["team"], o.get("player_id"))
+def _base_key(minute, type_: str, team: str) -> tuple:
+    """Dedup identity of one observation: (minute, type, team) — deliberately
+    *without* the player, which providers fill in (or correct) between polls.
+    Two events sharing a key are told apart by occurrence count, so a second
+    goal in the same minute is a new event, not a duplicate."""
+    return (round(float(minute), 3), type_, team)
 
 
 def exists(db: Session, match_id: str) -> bool:
@@ -154,39 +160,86 @@ def _stored_observations(db: Session, match_id: str) -> list[dict]:
     ]
 
 
-def _rebuild(db: Session, match_id: str, params) -> LiveMatch | None:
-    """Rebuild the transient LiveMatch by replaying the stored observation log.
+# In-process memo of the rebuilt LiveMatch, keyed by match_id and validated
+# against the stored log (prefix hash + params), so a poll that added two
+# observations replays two — not the whole match. Purely an optimization: a
+# cache miss falls back to the full deterministic replay, and any worker can
+# still serve any session (the DB log remains the single source of truth).
+_REBUILD_LOCK = threading.Lock()
+_REBUILD_MEMO: dict[str, tuple] = {}  # match_id -> (params_key, n, prefix_hash, lm)
+
+
+def _params_key(params) -> tuple:
+    return (params.base_rate, params.tau, params.pressure_threshold,
+            tuple(sorted(params.regime_scale.items())))
+
+
+def _obs_fingerprint(o: dict) -> tuple:
+    return (o["minute"], o["team"], o["type"], o["x"], o["y"],
+            o["player_id"], o["player"])
+
+
+def _forget(match_id: str) -> None:
+    with _REBUILD_LOCK:
+        _REBUILD_MEMO.pop(match_id, None)
+
+
+def _rebuild_snapshot(db: Session, match_id: str, params) -> dict | None:
+    """The live snapshot from the stored observation log (None if no session).
 
     Replaying in ``seq`` order reproduces the exact live state (deterministic),
-    so this is what makes the session state portable across workers.
+    so this is what makes the session state portable across workers. The memo
+    above only skips re-replaying a prefix this process has already replayed —
+    verified by hash, so the result is identical to a cold rebuild.
     """
     row = db.get(LiveSession, match_id)
     if row is None:
         return None
-    lm = LiveMatch(match_id, row.home, row.away, params)
-    for obs in _stored_observations(db, match_id):
-        lm.observe(obs)
-    lm.tick(row.minute or 0.0)
-    return lm
+    obs = _stored_observations(db, match_id)
+    prints = [_obs_fingerprint(o) for o in obs]
+    pkey = _params_key(params)
+    with _REBUILD_LOCK:
+        lm, replay_from = None, 0
+        memo = _REBUILD_MEMO.get(match_id)
+        if memo is not None:
+            m_pkey, n, m_hash, m_lm = memo
+            if (m_pkey == pkey and n <= len(prints)
+                    and m_lm.home == row.home and m_lm.away == row.away
+                    and m_hash == hash(tuple(prints[:n]))):
+                lm, replay_from = m_lm, n
+        if lm is None:
+            lm = LiveMatch(match_id, row.home, row.away, params)
+        for o in obs[replay_from:]:
+            lm.observe(o)
+        lm.tick(row.minute or 0.0)
+        _REBUILD_MEMO[match_id] = (pkey, len(prints), hash(tuple(prints)), lm)
+        return lm.snapshot()
 
 
 def _append(db: Session, match_id: str, obs_list) -> int:
-    """Persist observations not already logged (idempotent by key). No commit."""
+    """Persist observations not already logged. No commit.
+
+    Idempotent by *occurrence count* per ``(minute, type, team)``: re-polling
+    the same events feeds nothing, a genuinely new second event in the same
+    minute (a quick brace) is fed, and a provider that fills in the scorer on
+    a later poll does not re-feed the goal (the player is not part of the
+    identity)."""
     existing = db.execute(
         select(LiveObservation).where(LiveObservation.match_id == match_id)
     ).scalars().all()
-    seen = {_obs_key({"minute": r.minute, "type": r.type, "team": r.team,
-                      "player_id": r.player_id}) for r in existing}
+    stored = Counter(_base_key(r.minute, r.type, r.team) for r in existing)
+    seen: Counter = Counter()
     seq = len(existing)
     fed = 0
     for o in obs_list:
-        if _obs_key(o) in seen:
-            continue
+        key = _base_key(o["minute"], o["type"], o["team"])
+        seen[key] += 1
+        if seen[key] <= stored[key]:
+            continue  # this occurrence is already in the log
         db.add(LiveObservation(
             match_id=match_id, seq=seq, minute=float(o["minute"]),
             team=o["team"], type=o["type"], x=o.get("x"), y=o.get("y"),
             player_id=o.get("player_id"), player=o.get("player")))
-        seen.add(_obs_key(o))
         seq += 1
         fed += 1
     return fed
@@ -194,6 +247,7 @@ def _append(db: Session, match_id: str, obs_list) -> int:
 
 def start(db: Session, match_id: str, home: str, away: str, params) -> dict:
     """Open (or reset) a live session; returns the empty live snapshot."""
+    _forget(match_id)
     db.execute(delete(LiveObservation).where(LiveObservation.match_id == match_id))
     row = db.get(LiveSession, match_id)
     if row is None:
@@ -202,7 +256,7 @@ def start(db: Session, match_id: str, home: str, away: str, params) -> dict:
     else:
         row.home, row.away, row.minute, row.updated_at = home, away, 0.0, _now()
     db.commit()
-    return _rebuild(db, match_id, params).snapshot()
+    return _rebuild_snapshot(db, match_id, params)
 
 
 def observe(db: Session, match_id: str, obs: dict, params) -> dict | None:
@@ -214,7 +268,7 @@ def observe(db: Session, match_id: str, obs: dict, params) -> dict | None:
     row.minute = max(row.minute or 0.0, float(obs["minute"]))
     row.updated_at = _now()
     db.commit()
-    return _rebuild(db, match_id, params).snapshot()
+    return _rebuild_snapshot(db, match_id, params)
 
 
 def feed(db: Session, match_id: str, obs_list, params, *,
@@ -235,17 +289,17 @@ def feed(db: Session, match_id: str, obs_list, params, *,
     row.minute = minute
     row.updated_at = _now()
     db.commit()
-    return fed, _rebuild(db, match_id, params).snapshot()
+    return fed, _rebuild_snapshot(db, match_id, params)
 
 
 def state(db: Session, match_id: str, params) -> dict | None:
     """The live snapshot rebuilt from the store (None if no session)."""
-    lm = _rebuild(db, match_id, params)
-    return lm.snapshot() if lm is not None else None
+    return _rebuild_snapshot(db, match_id, params)
 
 
 def stop(db: Session, match_id: str) -> None:
     """End a live session: drop its log and marker."""
+    _forget(match_id)
     db.execute(delete(LiveObservation).where(LiveObservation.match_id == match_id))
     row = db.get(LiveSession, match_id)
     if row is not None:

@@ -15,9 +15,10 @@ Two founding constraints hold here as everywhere:
   no unseeded randomness.
 * **Honest.** The horizon is **not** a hardcoded 90: the caller passes the
   match's real remaining time, derived from data (period/Half-End markers,
-  cross-checked by the fusion layer). The engine never simulates past the real
-  end of the match, and never claims certainty — it reports probabilities and
-  says so.
+  cross-checked by the fusion layer). The engine never simulates meaningfully
+  past the real end of the match (time is quantized in ``step_seconds`` slices,
+  so the final slice may overrun the horizon by at most one step), and never
+  claims certainty — it reports probabilities and says so.
 
 No I/O, no LLMs. Pure function of ``(state, events, params, horizon)``.
 """
@@ -49,8 +50,10 @@ def _lane(y: float) -> str:
 def lane_weights(events, team: str, minute: float, tau: float) -> dict:
     """Decay-weighted share of ``team``'s recent attacking actions per lane.
 
-    Reads real event locations only; returns ``{lane: share}`` summing to 1
-    (uniform prior when the team has no located attacking actions yet).
+    Reads real event locations only; returns ``{lane: share}`` summing to
+    exactly 1 (uniform prior when the team has no located attacking actions
+    yet). Shares are returned unrounded so the sampler sees the true
+    distribution; callers round for display.
     """
     w = {lane: 0.0 for lane in LANES}
     for ev in events:
@@ -60,7 +63,7 @@ def lane_weights(events, team: str, minute: float, tau: float) -> dict:
     total = sum(w.values())
     if total == 0:
         return {lane: 1 / 3 for lane in LANES}
-    return {lane: round(v / total, 4) for lane, v in w.items()}
+    return {lane: v / total for lane, v in w.items()}
 
 
 def simulate_forward(
@@ -135,7 +138,7 @@ def simulate_forward(
         h = a = 0
         seen_first = {t: {lane: False for lane in LANES} for t in ("HOME", "AWAY")}
         for s in range(n_steps):
-            for team, p, goals_ref in (("HOME", p_home, "h"), ("AWAY", p_away, "a")):
+            for team, p in (("HOME", p_home), ("AWAY", p_away)):
                 if rng.random() < p:
                     if team == "HOME":
                         h += 1
@@ -203,7 +206,8 @@ def simulate_forward(
         "n_sims": n_sims,
         "seed": seed,
         "lambda_per_min": {"home": round(lam_home, 4), "away": round(lam_away, 4)},
-        "lane_tendency": lw,
+        "lane_tendency": {t: {lane: round(v, 4) for lane, v in w.items()}
+                          for t, w in lw.items()},
         "goal_prob": {
             "home": round(home_any / n_sims, 3),
             "away": round(away_any / n_sims, 3),

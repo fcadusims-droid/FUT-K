@@ -88,6 +88,10 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             status = response.status_code
             return response
         finally:
+            # Group by the matched route template. Requests that matched no
+            # route (404s from scanners, and 401/429 short-circuited before
+            # routing) share one label — using the raw path would let any
+            # scanner grow the registry without bound.
             route = request.scope.get("route")
-            path = getattr(route, "path", request.url.path)
+            path = getattr(route, "path", None) or "<unmatched>"
             metrics.observe(path, status, time.perf_counter() - start)

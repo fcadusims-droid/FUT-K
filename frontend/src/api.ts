@@ -20,6 +20,19 @@ import type {
 
 const BASE = '/api'
 
+// One query builder for every call: values are URL-encoded uniformly, so a
+// competition or team name containing `&`, `#` or spaces cannot break the URL.
+function qs(params: Record<string, string | number | boolean | undefined>): string {
+  const q = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') q.set(key, String(value))
+  }
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
+
+const enc = encodeURIComponent
+
 async function get<T>(path: string): Promise<T> {
   const resp = await fetch(`${BASE}${path}`)
   if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText} for ${path}`)
@@ -33,32 +46,30 @@ async function post<T>(path: string): Promise<T> {
 }
 
 export const fetchMatches = (competition?: string) =>
-  get<MatchSummary[]>(`/matches${competition ? `?competition=${competition}` : ''}`)
+  get<MatchSummary[]>(`/matches${qs({ competition })}`)
 
-export const fetchMatchDetail = (id: string) => get<MatchDetail>(`/matches/${id}`)
+export const fetchMatchDetail = (id: string) => get<MatchDetail>(`/matches/${enc(id)}`)
 
 export const fetchTimeline = (id: string, step = 1) =>
-  get<PanelState[]>(`/matches/${id}/timeline?step=${step}`)
+  get<PanelState[]>(`/matches/${enc(id)}/timeline${qs({ step })}`)
 
 export const fetchStory = (id: string) =>
-  get<StoryBeat[]>(`/matches/${id}/story`)
+  get<StoryBeat[]>(`/matches/${enc(id)}/story`)
 
 export const fetchEvents = (id: string) =>
-  get<MatchEvent2D[]>(`/matches/${id}/events`)
+  get<MatchEvent2D[]>(`/matches/${enc(id)}/events`)
 
 export const fetchExplain = (id: string, minute: number) =>
-  get<ExplainPayload>(`/matches/${id}/explain?minute=${minute}`)
+  get<ExplainPayload>(`/matches/${enc(id)}/explain${qs({ minute })}`)
 
 export const fetchWhatIf = (id: string, minute: number, type: string, team: string) =>
-  get<WhatIfPayload>(
-    `/matches/${id}/whatif?minute=${minute}&type=${type}&team=${team}`,
-  )
+  get<WhatIfPayload>(`/matches/${enc(id)}/whatif${qs({ minute, type, team })}`)
 
 export const fetchPlayerProfile = (playerId: string) =>
-  get<PlayerProfile[]>(`/players/profiles?player_id=${playerId}`)
+  get<PlayerProfile[]>(`/players/profiles${qs({ player_id: playerId })}`)
 
 export const fetchSimilarPlayers = (playerId: string, limit = 5) =>
-  get<SimilarResponse>(`/players/${playerId}/similar?limit=${limit}`)
+  get<SimilarResponse>(`/players/${enc(playerId)}/similar${qs({ limit })}`)
 
 export interface ScoutFilters {
   position?: string
@@ -68,16 +79,14 @@ export interface ScoutFilters {
   season?: string
 }
 
-export const fetchScoutRankings = (opts: ScoutFilters = {}) => {
-  const q = new URLSearchParams()
-  if (opts.position) q.set('position', opts.position)
-  if (opts.maxAge) q.set('max_age', String(opts.maxAge))
-  if (opts.minConfidence) q.set('min_confidence', String(opts.minConfidence))
-  if (opts.competition) q.set('competition', opts.competition)
-  if (opts.season) q.set('season', opts.season)
-  const qs = q.toString()
-  return get<ScoutRankings>(`/scout/rankings${qs ? `?${qs}` : ''}`)
-}
+export const fetchScoutRankings = (opts: ScoutFilters = {}) =>
+  get<ScoutRankings>(`/scout/rankings${qs({
+    position: opts.position,
+    max_age: opts.maxAge,
+    min_confidence: opts.minConfidence,
+    competition: opts.competition,
+    season: opts.season,
+  })}`)
 
 export interface ProfileFilters {
   team?: string
@@ -86,39 +95,38 @@ export interface ProfileFilters {
   minConfidence?: number
 }
 
-export const fetchPlayerProfiles = (opts: ProfileFilters = {}) => {
-  const q = new URLSearchParams()
-  if (opts.team) q.set('team', opts.team)
-  if (opts.archetype) q.set('archetype', opts.archetype)
-  if (opts.minActions) q.set('min_actions', String(opts.minActions))
-  if (opts.minConfidence) q.set('min_confidence', String(opts.minConfidence))
-  const qs = q.toString()
-  return get<PlayerProfile[]>(`/players/profiles${qs ? `?${qs}` : ''}`)
-}
+export const fetchPlayerProfiles = (opts: ProfileFilters = {}) =>
+  get<PlayerProfile[]>(`/players/profiles${qs({
+    team: opts.team,
+    archetype: opts.archetype,
+    min_actions: opts.minActions,
+    min_confidence: opts.minConfidence,
+  })}`)
 
 export const fetchTwinStream = (id: string) =>
-  get<TwinStream>(`/matches/${id}/replay2d`)
+  get<TwinStream>(`/matches/${enc(id)}/replay2d`)
 
 export const fetchCrossCheck = (id: string) =>
-  get<CrossCheck>(`/matches/${id}/crosscheck`)
+  get<CrossCheck>(`/matches/${enc(id)}/crosscheck`)
 
 export const fetchTactics = (id: string, minute: number) =>
-  get<TacticalGeometry>(`/matches/${id}/tactics?minute=${minute.toFixed(2)}`)
+  get<TacticalGeometry>(`/matches/${enc(id)}/tactics${qs({ minute: minute.toFixed(2) })}`)
 
 export const liveReplayFeed = (id: string, upto: number) =>
-  post<LiveState>(`/live/${id}/replay_feed?upto=${upto.toFixed(2)}`)
+  post<LiveState>(`/live/${enc(id)}/replay_feed${qs({ upto: upto.toFixed(2) })}`)
 
 export const fetchVision = (id: string, minute: number, evaluate = false) =>
-  get<VisionState>(
-    `/matches/${id}/vision?minute=${minute.toFixed(3)}${evaluate ? '&evaluate=true' : ''}`,
-  )
+  get<VisionState>(`/matches/${enc(id)}/vision${qs({
+    minute: minute.toFixed(3),
+    evaluate: evaluate || undefined,
+  })}`)
 
 export const fetchDecisions = (id: string, minute: number, team: string, seed = 0) =>
-  get<DecisionReport>(
-    `/matches/${id}/decisions?minute=${minute.toFixed(2)}&team=${team}&seed=${seed}`,
-  )
+  get<DecisionReport>(`/matches/${enc(id)}/decisions${qs({
+    minute: minute.toFixed(2), team, seed,
+  })}`)
 
 export const fetchSimulation = (id: string, minute: number, seed = 0) =>
-  get<SimulationResult>(
-    `/matches/${id}/simulate?minute=${minute.toFixed(2)}&seed=${seed}`,
-  )
+  get<SimulationResult>(`/matches/${enc(id)}/simulate${qs({
+    minute: minute.toFixed(2), seed,
+  })}`)

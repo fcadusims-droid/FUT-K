@@ -28,7 +28,7 @@ test that fails the build if anyone breaks it.
 **The one rule: dependencies point down, never up.**
 
 - **Core** imports nothing but the standard library and other Core modules.
-  It is the validated mathematics (89 spec'd test IDs live here). It changes
+  It is the validated mathematics (86 spec'd test IDs live here). It changes
   rarely and deliberately.
 - **Inference** may import Core. Fitting, the learned model, external-baseline
   ratings, the multi-source fusion layer, the future-simulation engine, and
