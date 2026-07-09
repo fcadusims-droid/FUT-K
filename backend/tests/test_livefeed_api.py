@@ -75,3 +75,30 @@ def test_endpoint_502_on_provider_error(client, monkeypatch):
 
     monkeypatch.setattr(lf, "fetch_live_match", boom)
     assert client.post("/live/g3/footballdata?fd_id=1").status_code == 502
+
+
+def test_sync_live_feeds_a_brace_in_the_same_minute():
+    """Two goals by the same team in the same minute are two events, not a
+    duplicate — identity is occurrence count per (minute, type, team)."""
+    session = live.LiveMatch("t3", "Home FC", "Away FC", Params())
+    brace = {**MATCH,
+             "goals": MATCH["goals"] + [{"minute": 80, "team": {"id": 1},
+                                         "scorer": {"id": 11}}],
+             "score": {"fullTime": {"home": 3, "away": 1}}}
+    assert sync_live(session, brace) == 5             # 4 goals + 1 card
+    assert session.snapshot()["panel"]["score"] == {"home": 3, "away": 1}
+    assert sync_live(session, brace) == 0             # still idempotent
+
+
+def test_sync_live_does_not_refeed_when_scorer_fills_in_later():
+    """A provider that first reports a goal without the scorer and enriches
+    it on a later poll must not double-count the goal."""
+    session = live.LiveMatch("t4", "Home FC", "Away FC", Params())
+    anonymous = {**MATCH, "bookings": [],
+                 "goals": [{"minute": 20, "team": {"id": 1}}],
+                 "score": {"fullTime": {"home": 1, "away": 0}}}
+    assert sync_live(session, anonymous) == 1
+    enriched = {**anonymous,
+                "goals": [{"minute": 20, "team": {"id": 1}, "scorer": {"id": 11}}]}
+    assert sync_live(session, enriched) == 0
+    assert session.snapshot()["panel"]["score"] == {"home": 1, "away": 0}

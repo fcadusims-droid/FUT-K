@@ -70,3 +70,27 @@ def test_rate_limit_http_429(client, monkeypatch):
     finally:
         limiter.limit, limiter.window = old
         limiter._hits.clear()
+
+
+def test_metrics_group_unmatched_paths(client):
+    """404s from scanners share one label — the registry stays bounded no
+    matter how many distinct unknown paths are probed."""
+    from app.observability import metrics
+
+    for i in range(5):
+        assert client.get(f"/no-such-route-{i}").status_code == 404
+    snap = metrics.snapshot()
+    assert "<unmatched>" in snap["routes"]
+    assert not any("no-such-route" in route for route in snap["routes"])
+
+
+def test_rate_limiter_evicts_idle_callers():
+    """Callers with no hit inside the window are swept, so the bucket dict
+    cannot grow without bound on a public deployment."""
+    import time
+
+    rl = RateLimiter(limit=3, window=0.05)
+    assert rl.allow("idle")[0]
+    time.sleep(0.06)
+    rl.allow("active")  # any call past the window triggers the sweep
+    assert "idle" not in rl._hits

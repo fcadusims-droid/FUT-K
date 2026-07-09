@@ -21,6 +21,9 @@ services:
       DATABASE_URL: postgresql+psycopg://futk:${FUTK_DB_PASSWORD:-futk_dev_pw}@postgres:5432/futk
       FUTK_API_KEYS: ${FUTK_API_KEYS:-}
       FUTK_RATE_LIMIT: ${FUTK_RATE_LIMIT:-120}
+      # nginx fronts the API here, so rate-limit the real client from
+      # X-Forwarded-For (see backend/app/security.py for the trust model).
+      FUTK_TRUST_PROXY: ${FUTK_TRUST_PROXY:-1}
     volumes:
       - futk_sbcache:/srv/futk/.sb_cache   # StatsBomb raw cache (network view)
     depends_on:

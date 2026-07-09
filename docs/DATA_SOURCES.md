@@ -1,8 +1,7 @@
 # Data sources — free live & historical football data
 
-This is the **measured** research behind FUT-K's data layer: which sources from
-[`Guide_to_Football_Soccer_data_and_APIs.md`](../Guide_to_Football_Soccer_data_and_APIs.md)
-are actually reachable and free today, what each one really provides, and which
+This is the **measured** research behind FUT-K's data layer: which candidate
+sources are actually reachable and free today, what each one really provides, and which
 one drives the **live feed**. Every claim here was probed against the live
 endpoint (2026-07); nothing is assumed.
 

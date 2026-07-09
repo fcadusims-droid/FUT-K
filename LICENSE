@@ -50,6 +50,20 @@ No individual or legal entity is authorized to:
 
 Any use depends on the author's prior and express authorization.
 
+### 2.1 Permitted evaluation use
+
+As the sole exceptions to Section 2, the author grants a non-exclusive,
+non-transferable, revocable permission to:
+
+* clone this repository and run FUT-K locally for personal, non-commercial
+  evaluation, study and testing, including reproducing the published
+  validation results;
+* create a fork on the hosting platform solely to prepare and submit a
+  contribution to the official repository under the CLA (`CLA.md`).
+
+This permission grants no other right listed in Section 2, no right under
+Section 3 (Commercial Use), and may be revoked by the author at any time.
+
 ---
 
 ## 3. Commercial Use

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fie-backend"
-version = "0.1.0"
+version = "0.2.0"
 description = "FUT-K — Football Intelligence Engine API service"
 authors = [{ name = "João Vitor Perazzolo (Johnny Kestler)" }]
 license = { text = "Proprietary" }

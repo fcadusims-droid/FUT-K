@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import math
 
+from typing import Literal
+
 from fastapi import Depends, FastAPI, HTTPException, Query
-from sqlalchemy import select
+from pydantic import BaseModel, Field
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .db import get_db
@@ -35,7 +38,7 @@ _load_plugins(PLUGINS_DIR)
 from .models import Match, MatchEvent, PlayerProfile
 from .observability import MetricsMiddleware, metrics
 from .security import SecurityMiddleware
-from .panel import _row_to_event, panel_state
+from .panel import panel_state, row_to_event
 from .story import humanize_panel, match_story
 
 app = FastAPI(
@@ -109,7 +112,45 @@ def _load_events(db: Session, match_id: str):
         .where(MatchEvent.match_id == match_id)
         .order_by(MatchEvent.minute)
     ).scalars().all()
-    return [_row_to_event(r) for r in rows]
+    return [row_to_event(r) for r in rows]
+
+
+def _forward_setup(db: Session, m: Match, events, minute: float, params):
+    """(duration, horizon, state, regime) for a forward look from ``minute``.
+
+    The shared preamble of /simulate, /decisions and /knowledge/capture: the
+    match's real duration (twin stream / period markers, falling back to the
+    last event), the remaining horizon, and the leakage-safe state + regime
+    (events sliced at ``minute`` first).
+    """
+    from fie.events import state_from_events
+    from fie.regime import detect_regime
+
+    from .twin import real_duration_minutes
+
+    duration = real_duration_minutes(db, m)
+    if duration is None:
+        duration = max((e.minute for e in events), default=90.0)
+    horizon = max(0.0, duration - minute)
+    state = state_from_events(m.id, events, minute)
+    events_until = [e for e in events if e.minute <= minute]
+    regime = detect_regime(state, events_until, params)
+    return duration, horizon, state, regime
+
+
+def _story_context(db: Session, m: Match) -> dict:
+    """Events, the minute-by-minute timeline and the narrated story for one
+    match — the shared substrate of /story and /ask."""
+    events = _load_events(db, m.id)
+    duration = math.ceil(max((e.minute for e in events), default=90.0))
+    params = get_active_params(db)  # constant per request — read once, not per minute
+    timeline = [panel_state(events, float(t), match_id=m.id, params=params)
+                for t in range(1, duration + 1)]
+    goal_minutes = [{"minute": e.minute, "team": e.team}
+                    for e in events if e.type == "goal"]
+    story = match_story(timeline, goal_minutes, m.home_team or "HOME",
+                        m.away_team or "AWAY")
+    return {"events": events, "timeline": timeline, "story": story}
 
 
 @app.get("/matches/{match_id}")
@@ -237,23 +278,12 @@ def simulate(
     hardcoded 90). Returns the outcome distribution and per-lane opportunity
     windows. Deterministic given ``seed``.
     """
-    from fie.events import state_from_events
-    from fie.regime import detect_regime
     from fie.simulation import simulate_forward
-
-    from .twin import real_duration_minutes
 
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
-    duration = real_duration_minutes(db, m)
-    if duration is None:
-        duration = max((e.minute for e in events), default=90.0)
-    horizon = max(0.0, duration - minute)
-
     params = get_active_params(db)
-    state = state_from_events(match_id, events, minute)
-    events_until = [e for e in events if e.minute <= minute]
-    regime = detect_regime(state, events_until, params)
+    duration, horizon, state, regime = _forward_setup(db, m, events, minute, params)
     result = simulate_forward(
         state, events, params, horizon_minutes=horizon,
         n_sims=n_sims, seed=seed, regime=regime,
@@ -276,19 +306,30 @@ def live_start(match_id: str, db: Session = Depends(get_db)) -> dict:
                       get_active_params(db))
 
 
-@app.post("/live/{match_id}/observe")
-def live_observe(match_id: str, obs: dict, db: Session = Depends(get_db)) -> dict:
-    """Push one observation into a live session; get the corrected state back.
+class Observation(BaseModel):
+    """One Live-Mode observation — the body of ``POST /live/{id}/observe``.
 
-    ``obs``: {minute, team (HOME/AWAY), type, x?, y?, player_id?, player?}.
-    """
+    Validated at the boundary so a malformed feed gets a 422 with the field
+    that failed, never a 500."""
+
+    minute: float = Field(ge=0, le=200)
+    team: Literal["HOME", "AWAY"]
+    type: str = Field(min_length=1)
+    x: float | None = None
+    y: float | None = None
+    player_id: str | None = None
+    player: str | None = None
+
+
+@app.post("/live/{match_id}/observe")
+def live_observe(match_id: str, obs: Observation,
+                 db: Session = Depends(get_db)) -> dict:
+    """Push one observation into a live session; get the corrected state back."""
     from . import live
 
     if not live.exists(db, match_id):
         raise HTTPException(status_code=404, detail="no live session; POST /start first")
-    if obs.get("team") not in ("HOME", "AWAY") or not obs.get("type"):
-        raise HTTPException(status_code=422, detail="obs needs team HOME/AWAY and a type")
-    return live.observe(db, match_id, obs, get_active_params(db))
+    return live.observe(db, match_id, obs.model_dump(), get_active_params(db))
 
 
 @app.get("/live/{match_id}/state")
@@ -438,25 +479,14 @@ def decisions(
     candidate approach and ranks them for ``team``. Deterministic given
     ``seed``; the payload states it is a model-based decision aid.
     """
-    from fie.events import state_from_events
-    from fie.regime import detect_regime
     from fie.strategy import evaluate_decisions
-
-    from .twin import real_duration_minutes
 
     if team not in ("HOME", "AWAY"):
         raise HTTPException(status_code=422, detail="team must be HOME or AWAY")
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
-    duration = real_duration_minutes(db, m)
-    if duration is None:
-        duration = max((e.minute for e in events), default=90.0)
-    horizon = max(0.0, duration - minute)
-
     params = get_active_params(db)
-    state = state_from_events(match_id, events, minute)
-    events_until = [e for e in events if e.minute <= minute]
-    regime = detect_regime(state, events_until, params)
+    _, horizon, state, regime = _forward_setup(db, m, events, minute, params)
     return evaluate_decisions(state, events, params, team=team,
                               horizon_minutes=horizon, seed=seed, regime=regime)
 
@@ -679,7 +709,7 @@ def knowledge_graph_view(
 def knowledge_audit(db: Session = Depends(get_db)) -> dict:
     """Continuous audit: replay the isolation & integrity validators over the
     whole store. A 200 with ``ok: true`` is a proof the store is consistent; a
-    violation raises (surfaced as a 500 with the offending rule)."""
+    violation is surfaced as a 409 naming the offending rule."""
     from fie.fusiondata import IntegrityError
 
     from .knowledgestore import audit
@@ -707,12 +737,9 @@ def knowledge_capture(
     produced it. Idempotent by content-addressed id (same minute/seed re-captures
     the same records). The reads themselves stay leakage-safe (events sliced at
     ``minute``)."""
-    from fie.events import state_from_events
-    from fie.regime import detect_regime
     from fie.simulation import simulate_forward
 
     from .knowledgestore import capture_panel, capture_simulation
-    from .twin import real_duration_minutes
 
     m = _get_match(db, match_id)
     events = _load_events(db, match_id)
@@ -721,13 +748,7 @@ def knowledge_capture(
     out = {"minute": minute, "predictions": capture_panel(db, panel)}
 
     if simulate:
-        duration = real_duration_minutes(db, m)
-        if duration is None:
-            duration = max((e.minute for e in events), default=90.0)
-        horizon = max(0.0, duration - minute)
-        state = state_from_events(match_id, events, minute)
-        events_until = [e for e in events if e.minute <= minute]
-        regime = detect_regime(state, events_until, params)
+        _, horizon, state, regime = _forward_setup(db, m, events, minute, params)
         sim = simulate_forward(state, events, params, horizon_minutes=horizon,
                                n_sims=n_sims, seed=seed, regime=regime)
         out["simulation"] = capture_simulation(db, match_id, minute, sim)
@@ -783,15 +804,7 @@ def match_state_human(
 def match_story_endpoint(match_id: str, db: Session = Depends(get_db)) -> list[dict]:
     """The narrated Match Story (product level 4 / design-doc Section 17)."""
     m = _get_match(db, match_id)
-    events = _load_events(db, match_id)
-    duration = math.ceil(max((e.minute for e in events), default=90.0))
-    params = get_active_params(db)  # constant per request — read once, not per minute
-    timeline = [
-        panel_state(events, float(t), match_id=match_id, params=params)
-        for t in range(1, duration + 1)
-    ]
-    goal_minutes = [{"minute": e.minute, "team": e.team} for e in events if e.type == "goal"]
-    return match_story(timeline, goal_minutes, m.home_team or "HOME", m.away_team or "AWAY")
+    return _story_context(db, m)["story"]
 
 
 @app.get("/matches/{match_id}/network")
@@ -877,20 +890,12 @@ def similar(match_id: str, limit: int = Query(5, ge=1, le=20),
 
 def _ask_context(db: Session, match_id: str) -> dict:
     m = _get_match(db, match_id)
-    events = _load_events(db, match_id)
-    duration = math.ceil(max((e.minute for e in events), default=90.0))
-    params = get_active_params(db)  # constant per request — read once, not per minute
-    timeline = [panel_state(events, float(t), match_id=match_id, params=params)
-                for t in range(1, duration + 1)]
-    goal_minutes = [{"minute": e.minute, "team": e.team}
-                    for e in events if e.type == "goal"]
-    story = match_story(timeline, goal_minutes, m.home_team or "HOME",
-                        m.away_team or "AWAY")
+    ctx = _story_context(db, m)
     return {
         "home": m.home_team or "HOME", "away": m.away_team or "AWAY",
-        "story": story, "events": events,
+        "story": ctx["story"], "events": ctx["events"],
         "final": (m.home_goals_final or 0, m.away_goals_final or 0),
-        "timeline_last": timeline[-1],
+        "timeline_last": ctx["timeline"][-1],
     }
 
 
@@ -955,17 +960,23 @@ def benchmarks() -> list[dict]:
 @app.get("/search")
 def search(q: str = Query(..., min_length=2), db: Session = Depends(get_db)) -> list[dict]:
     """Product API (level 12): free-text match search by team name."""
-    needle = q.lower()
-    rows = db.execute(select(Match)).scalars().all()
-    out = [
+    # Filter in SQL (case-insensitive substring, LIKE wildcards escaped) so the
+    # query scales with the catalog instead of loading every match into Python.
+    escaped = q.replace("\\", r"\\").replace("%", r"\%").replace("_", r"\_")
+    pattern = f"%{escaped}%"
+    rows = db.execute(
+        select(Match)
+        .where(or_(Match.home_team.ilike(pattern, escape="\\"),
+                   Match.away_team.ilike(pattern, escape="\\")))
+        .order_by(Match.match_date.desc().nullslast())
+        .limit(25)
+    ).scalars().all()
+    return [
         {"id": m.id, "match_date": m.match_date, "home_team": m.home_team,
          "away_team": m.away_team,
          "final": f"{m.home_goals_final}-{m.away_goals_final}"}
         for m in rows
-        if needle in (m.home_team or "").lower() or needle in (m.away_team or "").lower()
     ]
-    out.sort(key=lambda r: r["match_date"] or "", reverse=True)
-    return out[:25]
 
 
 @app.get("/insights/presets")
